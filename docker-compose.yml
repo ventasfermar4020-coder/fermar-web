@@ -1,0 +1,15 @@
+services:
+  fermar-web:
+    image: postgres
+    restart: always
+    container_name: fermar-web
+    ports:
+      - 5433:5432
+    environment:
+      POSTGRES_PASSWORD: your_password
+      PGDATA: /data/postgres
+    volumes:
+      - postgres:/data/postgres
+
+volumes:
+  postgres:
