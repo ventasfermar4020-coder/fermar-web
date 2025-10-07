@@ -1,54 +1,16 @@
-"use client";
-
 import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
-import CheckoutModal from "./components/CheckoutModal";
+import { database } from "@/src/db";
+import { products } from "@/src/db/schema";
+import { eq } from "drizzle-orm";
+import ProductGrid from "./components/ProductGrid";
 
-export default function Home() {
-  const [selectedProduct, setSelectedProduct] = useState<{
-    id: number;
-    name: string;
-    price: string;
-    image: string;
-  } | null>(null);
-  const products = [
-    {
-      id: 1,
-      name: "Playmobil  City Life",
-      description:
-        "Juguete de construcción de la serie City Life de Playmobil, ideal para niños a partir de 4 años.",
-      price: "$699.00",
-      image: "/products/playmobil.png",
-      bgColor: "#ECE5D8",
-    },
-    {
-      id: 2,
-      name: "Barbie 2015 B",
-      description:
-        "Esta Barbie de gran tamaño es perfecta para coleccionistas y fans de todas las edades.",
-      price: "$503.10",
-      image: "/products/barbie.png",
-      bgColor: "#F4ECDD",
-    },
-    {
-      id: 3,
-      name: "Hotwheels Barbie",
-      description: "Coche Hot Wheels edición Barbie de la película.",
-      price: "$113.89",
-      image: "/products/hotwheels.jpg",
-      bgColor: "#F9F1E3",
-    },
-    {
-      id: 4,
-      name: "Perfume Avon Wild Country",
-      description:
-        "Un perfume masculino que combina notas frescas y especiadas.",
-      price: "$237.00",
-      image: "/products/avon.jpg",
-      bgColor: "#FFFCF8",
-    },
-  ];
+export default async function Home() {
+  // Fetch active products from database
+  const activeProducts = await database
+    .select()
+    .from(products)
+    .where(eq(products.isActive, true));
 
   const categories = [
     { name: "Todos", active: true },
@@ -108,64 +70,7 @@ export default function Home() {
         </div>
 
         {/* Product Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-7 mb-16">
-          {products.map((product) => (
-            <div
-              key={product.id}
-              className="bg-white rounded-[3px] shadow-[0_54px_80px_-16px_rgba(219,222,229,0.8)] overflow-hidden"
-            >
-              {/* Product Image */}
-              <div
-                className="h-64 flex items-center justify-center"
-                style={{ backgroundColor: product.bgColor }}
-              >
-                <Image
-                  src={product.image}
-                  alt={product.name}
-                  width={200}
-                  height={200}
-                  className="object-contain max-h-[240px] w-auto"
-                />
-              </div>
-
-              {/* Product Info */}
-              <div className="p-5">
-                <h3 className="text-[#212B36] text-2xl font-semibold leading-9 mb-4 min-h-[72px]">
-                  {product.name}
-                </h3>
-
-                <p className="text-[#637381] text-base leading-6 tracking-[0.03125em] mb-6 min-h-[96px]">
-                  {product.description}
-                </p>
-
-                {/* Decorative Line */}
-                <div className="w-[31px] h-[2px] bg-[#D8D8D8] mx-auto mb-4" />
-
-                {/* Price */}
-                <p className="text-[#EC2A2A] text-2xl font-semibold text-center">
-                  {product.price}
-                </p>
-
-                {/* Buy Button */}
-                <button
-                  onClick={() => setSelectedProduct(product)}
-                  className="w-full mt-4 bg-[#EC2A2A] hover:bg-[#D32424] text-white font-semibold text-lg py-3 px-6 rounded-[3px] transition-colors duration-200"
-                >
-                  Comprar
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Checkout Modal */}
-        {selectedProduct && (
-          <CheckoutModal
-            isOpen={!!selectedProduct}
-            onClose={() => setSelectedProduct(null)}
-            product={selectedProduct}
-          />
-        )}
+        <ProductGrid products={activeProducts} />
 
         {/* Navigation Dots */}
         <div className="flex items-center justify-center gap-4">
