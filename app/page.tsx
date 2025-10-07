@@ -5,6 +5,9 @@ import { products } from "@/src/db/schema";
 import { eq } from "drizzle-orm";
 import ProductGrid from "./components/ProductGrid";
 
+// Force dynamic rendering - don't prerender at build time
+export const dynamic = 'force-dynamic';
+
 export default async function Home() {
   // Fetch active products from database
   const activeProducts = await database
