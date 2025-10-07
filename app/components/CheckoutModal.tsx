@@ -22,6 +22,7 @@ interface CheckoutFormData {
   state: string;
   zipCode: string;
   country: string;
+  referencia?: string;
 }
 
 interface CheckoutModalProps {
@@ -78,6 +79,7 @@ function CheckoutForm({
             postal_code: data.zipCode,
             country: data.country,
           },
+          referencia: data.referencia,
         }),
       });
 
@@ -237,6 +239,21 @@ function CheckoutForm({
               {errors.country.message}
             </p>
           )}
+        </div>
+
+        <div className="col-span-2">
+          <label className="block text-sm font-medium text-[#212B36] mb-1">
+            Referencias de Entrega
+          </label>
+          <textarea
+            {...register("referencia")}
+            placeholder="Ej: Casa de color azul, cerca del parque..."
+            rows={3}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#EC2A2A] resize-none"
+          />
+          <p className="text-xs text-gray-500 mt-1">
+            Opcional: Proporciona detalles adicionales para facilitar la entrega (color de la casa, edificios cercanos, etc.)
+          </p>
         </div>
 
         <div className="col-span-2">

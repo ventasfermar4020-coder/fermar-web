@@ -28,6 +28,7 @@ export const products = pgTable("ec_products", {
   name: text("name").notNull(),
   description: text("description").notNull(),
   price: numeric("price", { precision: 10, scale: 2 }).notNull(),
+  stripePriceId: text("stripePriceId"), // Stripe Price ID (e.g., price_1ABC...)
   imageId: text("imageId"),
   image: text("image"),
   stock: integer("stock").notNull().default(0),
@@ -49,6 +50,7 @@ export const orders = pgTable(
     shippingState: text("shippingState").notNull(),
     shippingZipCode: text("shippingZipCode").notNull(),
     shippingCountry: text("shippingCountry").notNull(),
+    shippingReferencia: text("shippingReferencia"), // Additional reference for delivery (e.g., house color, nearby buildings)
     // Order details
     status: orderStatusEnum("status").notNull().default("pending"),
     totalAmount: numeric("totalAmount", { precision: 10, scale: 2 }).notNull(),

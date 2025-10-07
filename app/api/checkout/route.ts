@@ -7,7 +7,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 
 export async function POST(req: NextRequest) {
   try {
-    const { amount, productId, productName, email, phone, shippingAddress } =
+    const { amount, productId, productName, email, phone, shippingAddress, referencia } =
       await req.json();
 
     // Create Payment Intent
@@ -20,6 +20,7 @@ export async function POST(req: NextRequest) {
         email,
         phone,
         shippingAddress: JSON.stringify(shippingAddress),
+        referencia: referencia || "",
       },
       receipt_email: email,
       shipping: {
