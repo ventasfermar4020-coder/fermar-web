@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
+import { database } from "@/src/db";
+import { products } from "@/src/db/schema";
+import { eq } from "drizzle-orm";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2025-09-30.clover",
@@ -7,8 +10,32 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 
 export async function POST(req: NextRequest) {
   try {
-    const { amount, productId, productName, email, phone, shippingAddress, referencia } =
+    const { productId, email, phone, shippingAddress, referencia } =
       await req.json();
+
+    // Fetch product from database to get the real price
+    const [product] = await database
+      .select()
+      .from(products)
+      .where(eq(products.id, productId))
+      .limit(1);
+
+    if (!product) {
+      return NextResponse.json(
+        { error: "Product not found" },
+        { status: 404 }
+      );
+    }
+
+    if (!product.isActive || product.stock <= 0) {
+      return NextResponse.json(
+        { error: "Product not available" },
+        { status: 400 }
+      );
+    }
+
+    // Use the price from the database (secure)
+    const amount = parseFloat(product.price);
 
     // Create Payment Intent
     const paymentIntent = await stripe.paymentIntents.create({
@@ -16,7 +43,7 @@ export async function POST(req: NextRequest) {
       currency: "mxn",
       metadata: {
         productId: productId.toString(),
-        productName,
+        productName: product.name,
         email,
         phone,
         shippingAddress: JSON.stringify(shippingAddress),

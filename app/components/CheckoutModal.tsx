@@ -59,17 +59,12 @@ function CheckoutForm({
     setProcessing(true);
 
     try {
-      // Convert price string to number
-      const priceNumber = parseFloat(product.price.replace(/[$,]/g, ""));
-
-      // Create payment intent
+      // Create payment intent (server fetches price from database)
       const response = await fetch("/api/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          amount: priceNumber,
           productId: product.id,
-          productName: product.name,
           email: data.email,
           phone: data.phone,
           shippingAddress: {
