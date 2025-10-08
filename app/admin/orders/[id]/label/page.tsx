@@ -2,6 +2,7 @@ import { database } from "@/src/db";
 import { orders, orderItems } from "@/src/db/schema";
 import { eq } from "drizzle-orm";
 import Link from "next/link";
+import PrintButton from "./PrintButton";
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
@@ -55,12 +56,7 @@ export default async function ShippingLabelPage({
         >
           ← Volver
         </Link>
-        <button
-          onClick={() => window.print()}
-          className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-medium"
-        >
-          🖨️ Imprimir Etiqueta
-        </button>
+        <PrintButton />
       </div>
 
       {/* Shipping Label - Optimized for printing */}
