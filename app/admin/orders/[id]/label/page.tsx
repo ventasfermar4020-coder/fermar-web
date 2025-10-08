@@ -5,7 +5,7 @@ import Link from "next/link";
 import PrintButton from "./PrintButton";
 
 // Force dynamic rendering
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 export default async function ShippingLabelPage({
   params,
@@ -29,10 +29,7 @@ export default async function ShippingLabelPage({
           <h1 className="text-2xl font-bold text-gray-900 mb-4">
             Orden no encontrada
           </h1>
-          <Link
-            href="/admin/orders"
-            className="text-blue-600 hover:underline"
-          >
+          <Link href="/admin/orders" className="text-blue-600 hover:underline">
             Volver a órdenes
           </Link>
         </div>
@@ -68,44 +65,32 @@ export default async function ShippingLabelPage({
             <p className="text-xl mt-2">Orden #{order.id}</p>
           </div>
 
-          <div className="grid grid-cols-2 gap-8 mt-6">
-            {/* From Section */}
-            <div>
-              <h2 className="text-xl font-bold mb-3 border-b-2 border-black pb-1">
-                REMITENTE
-              </h2>
-              <div className="text-lg">
-                <p className="font-bold">TU NEGOCIO</p>
-                <p>Tu Dirección</p>
-                <p>Tu Ciudad, Estado CP</p>
-                <p>México</p>
-                <p className="mt-2">Tel: Tu Teléfono</p>
-              </div>
-            </div>
-
-            {/* To Section */}
-            <div>
-              <h2 className="text-xl font-bold mb-3 border-b-2 border-black pb-1">
-                DESTINATARIO
-              </h2>
-              <div className="text-lg">
-                <p className="font-bold text-xl">{order.contactEmail.split('@')[0].toUpperCase()}</p>
-                <p className="font-semibold mt-2">{order.shippingAddress}</p>
-                <p className="font-semibold">
-                  {order.shippingCity}, {order.shippingState}
-                </p>
-                <p className="font-semibold">CP: {order.shippingZipCode}</p>
-                <p className="font-semibold">{order.shippingCountry}</p>
-                <p className="mt-2">Tel: {order.contactPhone}</p>
-                <p className="mt-1">Email: {order.contactEmail}</p>
-              </div>
+          {/* Destinatario Section */}
+          <div className="mt-6">
+            <h2 className="text-2xl font-bold mb-4 border-b-2 border-black pb-2">
+              DESTINATARIO
+            </h2>
+            <div className="text-lg">
+              <p className="font-bold text-2xl mb-3">
+                {order.contactEmail.split("@")[0].toUpperCase()}
+              </p>
+              <p className="font-semibold text-xl">{order.shippingAddress}</p>
+              <p className="font-semibold text-xl">
+                {order.shippingCity}, {order.shippingState}
+              </p>
+              <p className="font-semibold text-xl">CP: {order.shippingZipCode}</p>
+              <p className="font-semibold text-xl">{order.shippingCountry}</p>
+              <p className="mt-3 text-lg">Tel: {order.contactPhone}</p>
+              <p className="text-lg">Email: {order.contactEmail}</p>
             </div>
           </div>
 
           {/* Reference Information */}
           {order.shippingReferencia && (
             <div className="mt-6 p-4 bg-yellow-50 border-2 border-yellow-400">
-              <h3 className="font-bold text-lg mb-2">📍 REFERENCIAS DE ENTREGA:</h3>
+              <h3 className="font-bold text-lg mb-2">
+                📍 REFERENCIAS DE ENTREGA:
+              </h3>
               <p className="text-lg">{order.shippingReferencia}</p>
             </div>
           )}
@@ -115,7 +100,9 @@ export default async function ShippingLabelPage({
             <h3 className="font-bold text-lg mb-3">CONTENIDO DEL PAQUETE:</h3>
             {items.map((item, index) => (
               <div key={index} className="text-lg mb-2">
-                <p>• {item.productNameSnapshot} - Cantidad: {item.quantity}</p>
+                <p>
+                  • {item.productNameSnapshot} - Cantidad: {item.quantity}
+                </p>
               </div>
             ))}
             <p className="text-xl font-bold mt-4">
@@ -127,30 +114,22 @@ export default async function ShippingLabelPage({
           <div className="mt-6 text-center p-4 border-2 border-dashed border-gray-400">
             <p className="text-sm text-gray-600 mb-2">ID de Rastreo</p>
             <p className="text-3xl font-mono font-bold tracking-widest">
-              {order.id.toString().padStart(10, '0')}
+              {order.id.toString().padStart(10, "0")}
             </p>
           </div>
 
           {/* Date */}
           <div className="mt-4 text-center text-sm text-gray-600">
-            Fecha de Orden: {new Date(order.createdAt).toLocaleDateString('es-MX', {
-              weekday: 'long',
-              year: 'numeric',
-              month: 'long',
-              day: 'numeric',
-              hour: '2-digit',
-              minute: '2-digit'
+            Fecha de Orden:{" "}
+            {new Date(order.createdAt).toLocaleDateString("es-MX", {
+              weekday: "long",
+              year: "numeric",
+              month: "long",
+              day: "numeric",
+              hour: "2-digit",
+              minute: "2-digit",
             })}
           </div>
-        </div>
-
-        {/* Instructions for courier */}
-        <div className="border-2 border-gray-300 p-4 text-sm text-gray-600">
-          <p className="font-semibold mb-2">INSTRUCCIONES PARA PAQUETERÍA:</p>
-          <p>• Manejar con cuidado</p>
-          <p>• No doblar ni mojar</p>
-          <p>• Entregar en la dirección especificada</p>
-          {order.shippingReferencia && <p>• Leer referencias de entrega antes de intentar la entrega</p>}
         </div>
       </div>
     </div>
