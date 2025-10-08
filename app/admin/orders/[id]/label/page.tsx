@@ -78,7 +78,9 @@ export default async function ShippingLabelPage({
               <p className="font-semibold text-xl">
                 {order.shippingCity}, {order.shippingState}
               </p>
-              <p className="font-semibold text-xl">CP: {order.shippingZipCode}</p>
+              <p className="font-semibold text-xl">
+                CP: {order.shippingZipCode}
+              </p>
               <p className="font-semibold text-xl">{order.shippingCountry}</p>
               <p className="mt-3 text-lg">Tel: {order.contactPhone}</p>
               <p className="text-lg">Email: {order.contactEmail}</p>
@@ -94,29 +96,6 @@ export default async function ShippingLabelPage({
               <p className="text-lg">{order.shippingReferencia}</p>
             </div>
           )}
-
-          {/* Package Details */}
-          <div className="mt-6 pt-4 border-t-2 border-black">
-            <h3 className="font-bold text-lg mb-3">CONTENIDO DEL PAQUETE:</h3>
-            {items.map((item, index) => (
-              <div key={index} className="text-lg mb-2">
-                <p>
-                  • {item.productNameSnapshot} - Cantidad: {item.quantity}
-                </p>
-              </div>
-            ))}
-            <p className="text-xl font-bold mt-4">
-              TOTAL: ${parseFloat(order.totalAmount).toFixed(2)} MXN
-            </p>
-          </div>
-
-          {/* Barcode Placeholder */}
-          <div className="mt-6 text-center p-4 border-2 border-dashed border-gray-400">
-            <p className="text-sm text-gray-600 mb-2">ID de Rastreo</p>
-            <p className="text-3xl font-mono font-bold tracking-widest">
-              {order.id.toString().padStart(10, "0")}
-            </p>
-          </div>
 
           {/* Date */}
           <div className="mt-4 text-center text-sm text-gray-600">
