@@ -1,6 +1,5 @@
 import { database } from "@/src/db";
-import { orders, orderItems, products } from "@/src/db/schema";
-import { eq } from "drizzle-orm";
+import { orders } from "@/src/db/schema";
 import Link from "next/link";
 
 // Force dynamic rendering

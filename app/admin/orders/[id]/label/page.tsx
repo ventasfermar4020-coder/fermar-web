@@ -1,5 +1,5 @@
 import { database } from "@/src/db";
-import { orders, orderItems, products } from "@/src/db/schema";
+import { orders, orderItems } from "@/src/db/schema";
 import { eq } from "drizzle-orm";
 import Link from "next/link";
 
@@ -9,9 +9,10 @@ export const dynamic = 'force-dynamic';
 export default async function ShippingLabelPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
-  const orderId = parseInt(params.id);
+  const { id } = await params;
+  const orderId = parseInt(id);
 
   // Fetch order details
   const [order] = await database
