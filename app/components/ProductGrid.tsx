@@ -70,6 +70,19 @@ export default function ProductGrid({ products }: { products: Product[] }) {
                   {formattedPrice}
                 </p>
 
+                {/* Stock Display */}
+                <div className="text-center mt-2">
+                  {product.stock > 0 ? (
+                    <p className="text-[#637381] text-sm">
+                      {product.stock} disponible{product.stock > 1 ? 's' : ''}
+                    </p>
+                  ) : (
+                    <p className="text-[#EC2A2A] text-sm font-semibold">
+                      Sin stock
+                    </p>
+                  )}
+                </div>
+
                 {/* Buy Button */}
                 <button
                   onClick={() =>
