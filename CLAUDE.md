@@ -11,8 +11,12 @@ This is a Next.js 15 web application built with React 19, TypeScript, and Tailwi
 ### Development
 - `npm run dev` - Start development server with Turbopack (runs on http://0.0.0.0:3000)
 - `npm run build` - Build production bundle with Turbopack
-- `npm start` - Start production server
+- `npm start` - Run migrations then start production server
+- `npm run start:prod` - Start production server without running migrations
 - `npm run lint` - Run ESLint to check code quality
+
+### Stripe
+- `npm run stripe:listen` - Start Stripe CLI webhook forwarding to localhost:3000/api/webhooks/stripe
 
 ### Database
 - `npm run db:push` - Push schema changes directly to database (development)
@@ -30,10 +34,19 @@ This is a Next.js 15 web application built with React 19, TypeScript, and Tailwi
   - `layout.tsx` - Root layout with font configuration (Lato, Geist Sans, Geist Mono)
   - `page.tsx` - Home page with product catalog and checkout modal
   - `conocenos/page.tsx` - About us page
-  - `success/page.tsx` - Payment success page
+  - `kefir/page.tsx` - Kefir product page
+  - `success/page.tsx` - Payment success page (displays activation codes and download links for digital products)
+  - `admin/orders/page.tsx` - Admin view of all orders
+  - `admin/orders/[id]/label/page.tsx` - Printable shipping label for an order
   - `components/CheckoutModal.tsx` - Stripe checkout form component
+  - `components/ProductGrid.tsx` - Reusable product grid component
   - `api/checkout/route.ts` - API endpoint for creating Stripe payment intents
+  - `api/webhooks/stripe/route.ts` - Stripe webhook handler (processes payment_intent.succeeded)
+  - `api/verify-payment/route.ts` - Endpoint to verify payment status and create orders (returns product details including activation codes)
+  - `api/download/route.ts` - Secure download endpoint for digital products (validates order before serving files)
   - `globals.css` - Global styles with Tailwind CSS v4 and CSS variables for theming
+
+- **`public/downloads/`** - Storage directory for digital product files (WordPress plugins as password-protected RAR files)
 
 - **`src/`** - Source code for database and utilities
   - `db/schema.ts` - Drizzle ORM database schema definitions
@@ -53,13 +66,14 @@ This is a Next.js 15 web application built with React 19, TypeScript, and Tailwi
 
 **Schema Design (E-commerce):**
 - **`ec_products`** - Product catalog
-  - Fields: id, name, description, price (numeric 10,2), imageId, image, stock, isActive
+  - Fields: id, name, description, price (numeric 10,2), stripePriceId, imageId, image, stock, isActive
+  - Digital product fields: isDigital (boolean), downloadUrl (path to RAR file), activationCode (fixed password for RAR)
   - Timestamps: createdAt, updatedAt
 
 - **`ec_orders`** - Customer orders
   - Contact: contactEmail, contactPhone
-  - Shipping: shippingAddress, shippingCity, shippingState, shippingZipCode, shippingCountry
-  - Order details: status (enum), totalAmount (numeric 10,2)
+  - Shipping: shippingAddress, shippingCity, shippingState, shippingZipCode, shippingCountry, shippingReferencia (optional delivery reference)
+  - Order details: status (enum: pending, processing, shipped, delivered, cancelled), totalAmount (numeric 10,2)
   - Payment: stripePaymentIntentId
   - Timestamps: createdAt, updatedAt, deliveredAt
   - Indexes: status, contactEmail
@@ -79,10 +93,34 @@ This is a Next.js 15 web application built with React 19, TypeScript, and Tailwi
 **Stripe Setup:**
 - Payment intents created via `/api/checkout` route
 - Currency: MXN (Mexican Peso)
-- Metadata stored: productId, productName, email, phone, shippingAddress
+- Metadata stored: productId, productName, email, phone, shippingAddress, referencia
 - Receipt sent to customer email
-- API version: `2024-12-18.acacia`
-- Required env var: `STRIPE_SECRET_KEY`
+- API version: `2025-09-30.clover`
+- Required env vars:
+  - `STRIPE_SECRET_KEY` - Stripe secret key for API operations
+  - `STRIPE_WEBHOOK_SECRET` - Webhook signing secret for validating webhook events
+
+**Webhook Flow:**
+- Stripe webhooks received at `/api/webhooks/stripe`
+- Handles `payment_intent.succeeded` event
+- Creates order and order items in database
+- Decrements product stock atomically using database transactions (only for physical products)
+- Prevents duplicate order creation by checking if order with same `stripePaymentIntentId` already exists
+- Uses race condition protection with transaction-level checks
+
+**Digital Products (WordPress Plugins):**
+- Products can be marked as digital using the `isDigital` field
+- Each digital product has:
+  - `downloadUrl` - Filename of the RAR file in `public/downloads/` directory
+  - `activationCode` - Fixed password for opening the RAR file (set manually in database)
+- After successful payment, customers see:
+  - Activation code with copy button on success page
+  - Download button that securely serves the file
+- Download endpoint (`/api/download`) validates:
+  - Order exists and contains the product
+  - Payment was successful
+  - Product is digital and has a download URL
+- Stock is NOT decremented for digital products (unlimited downloads)
 
 ### Environment Variables
 
@@ -90,6 +128,7 @@ Environment validation handled by `src/env.ts` using Zod:
 - `DATABASE_URL` (required, URL format) - PostgreSQL connection string
 - `NODE_ENV` (optional, defaults to "development") - Environment mode
 - `STRIPE_SECRET_KEY` (used but not validated in env.ts) - Stripe secret key
+- `STRIPE_WEBHOOK_SECRET` (used but not validated in env.ts) - Stripe webhook signing secret
 
 ### Styling System
 - Uses **Tailwind CSS v4** with the new `@tailwindcss/postcss` plugin
@@ -124,6 +163,25 @@ Environment validation handled by `src/env.ts` using Zod:
 - Use Drizzle Studio (`npm run db:studio`) for visual database inspection
 - All table types are auto-generated and exported (e.g., `Product`, `NewProduct`, `Order`, etc.)
 - Database instance is imported as `{ database }` from `@/src/db`
+
+### Working with Stripe Webhooks
+- Use `npm run stripe:listen` to forward webhooks to local development environment
+- Webhook endpoint validates signature using `STRIPE_WEBHOOK_SECRET`
+- Order creation happens in webhook handler after successful payment
+- Stock is decremented atomically within a transaction to prevent overselling (only for physical products)
+- Webhook handler includes duplicate prevention - checks if order already exists before creating
+
+### Working with Digital Products
+- To add a new WordPress plugin product:
+  1. Place the password-protected RAR file in `public/downloads/` directory
+  2. Create/update product in database with:
+     - `isDigital: true`
+     - `downloadUrl: "filename.rar"` (just the filename, not full path)
+     - `activationCode: "your-password"` (the RAR password)
+     - `stock: 0` (not used for digital products)
+  3. Customers will automatically see the activation code and download button after purchase
+- Files are served securely through `/api/download` endpoint which validates the purchase
+- Same activation code is shared by all customers who purchase that plugin
 
 ### Styling Approach
 - Use Tailwind utility classes directly in components

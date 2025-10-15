@@ -11,7 +11,15 @@ function SuccessPageContent() {
     success: boolean;
     orderId?: number;
     error?: string;
+    product?: {
+      id: number;
+      name: string;
+      isDigital: boolean;
+      downloadUrl: string | null;
+      activationCode: string | null;
+    } | null;
   } | null>(null);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     if (paymentIntent) {
@@ -124,6 +132,59 @@ function SuccessPageContent() {
               </p>
             </div>
           )}
+
+          {/* Digital Product Download Section */}
+          {verificationStatus?.product?.isDigital && (
+            <div className="bg-blue-50 rounded-lg p-6 mb-6 border border-blue-200">
+              <h2 className="text-lg font-bold text-[#212B36] mb-4">
+                📦 Descarga tu Plugin de WordPress
+              </h2>
+
+              {/* Activation Code */}
+              {verificationStatus.product.activationCode && (
+                <div className="mb-4">
+                  <p className="text-sm text-[#637381] mb-2 font-semibold">
+                    Código de Activación (Contraseña del RAR):
+                  </p>
+                  <div className="bg-white rounded-lg p-4 border-2 border-blue-300 flex items-center justify-between">
+                    <code className="text-xl font-bold text-[#212B36] tracking-wider break-all">
+                      {verificationStatus.product.activationCode}
+                    </code>
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(verificationStatus.product?.activationCode || "");
+                        setCopied(true);
+                        setTimeout(() => setCopied(false), 2000);
+                      }}
+                      className="ml-4 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded transition-colors"
+                      title="Copiar código"
+                    >
+                      {copied ? "✓ Copiado" : "Copiar"}
+                    </button>
+                  </div>
+                  <p className="text-xs text-[#637381] mt-2">
+                    💡 Usa este código cuando WinRAR te pida la contraseña al descomprimir el archivo.
+                  </p>
+                </div>
+              )}
+
+              {/* Download Button */}
+              {verificationStatus.product.downloadUrl && (
+                <a
+                  href={`/api/download?productId=${verificationStatus.product.id}&orderId=${verificationStatus.orderId}`}
+                  className="inline-block w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold text-lg py-3 px-6 rounded-[3px] transition-colors duration-200 text-center mb-3"
+                  download
+                >
+                  ⬇️ Descargar Plugin
+                </a>
+              )}
+
+              <p className="text-xs text-[#637381] text-center">
+                También te enviaremos el código de activación por correo electrónico
+              </p>
+            </div>
+          )}
+
           <div className="bg-gray-50 rounded-lg p-4 mb-6">
             <p className="text-sm text-[#637381] mb-1">ID de Transacción:</p>
             <p className="text-xs font-mono text-[#212B36] break-all">

@@ -44,6 +44,35 @@ export async function POST(req: NextRequest) {
 
     if (existingOrder.length > 0) {
       console.log("✅ Order already exists:", existingOrder[0].id);
+
+      // Fetch the product details for this order
+      const orderItem = await database
+        .select()
+        .from(orderItems)
+        .where(eq(orderItems.orderId, existingOrder[0].id))
+        .limit(1);
+
+      if (orderItem.length > 0) {
+        const [product] = await database
+          .select()
+          .from(products)
+          .where(eq(products.id, orderItem[0].productId))
+          .limit(1);
+
+        return NextResponse.json({
+          success: true,
+          orderId: existingOrder[0].id,
+          alreadyProcessed: true,
+          product: product ? {
+            id: product.id,
+            name: product.name,
+            isDigital: product.isDigital,
+            downloadUrl: product.downloadUrl,
+            activationCode: product.activationCode,
+          } : null,
+        });
+      }
+
       return NextResponse.json({
         success: true,
         orderId: existingOrder[0].id,
@@ -75,6 +104,20 @@ export async function POST(req: NextRequest) {
 
     console.log(`📦 Creating order for product ${productId}`);
 
+    // Fetch product details to check if it's digital
+    const [product] = await database
+      .select()
+      .from(products)
+      .where(eq(products.id, productId))
+      .limit(1);
+
+    if (!product) {
+      return NextResponse.json(
+        { error: "Product not found" },
+        { status: 404 }
+      );
+    }
+
     // Use a transaction to ensure stock is decremented and order is created atomically
     const result = await database.transaction(async (tx) => {
       // Double-check inside transaction to prevent race condition
@@ -89,14 +132,16 @@ export async function POST(req: NextRequest) {
         return existingOrderInTx[0]; // Return existing order
       }
 
-      // Decrement product stock
-      await tx
-        .update(products)
-        .set({
-          stock: sql`${products.stock} - 1`,
-          updatedAt: new Date(),
-        })
-        .where(eq(products.id, productId));
+      // Decrement product stock (only for physical products)
+      if (!product.isDigital) {
+        await tx
+          .update(products)
+          .set({
+            stock: sql`${products.stock} - 1`,
+            updatedAt: new Date(),
+          })
+          .where(eq(products.id, productId));
+      }
 
       // Create order in database
       const [order] = await tx
@@ -130,10 +175,18 @@ export async function POST(req: NextRequest) {
       return order;
     });
 
+    // Return order details with product information (including activation code for digital products)
     return NextResponse.json({
       success: true,
       orderId: result.id,
       alreadyProcessed: false,
+      product: {
+        id: product.id,
+        name: product.name,
+        isDigital: product.isDigital,
+        downloadUrl: product.downloadUrl,
+        activationCode: product.activationCode,
+      },
     });
   } catch (error) {
     console.error("❌ Error verifying payment:", error);

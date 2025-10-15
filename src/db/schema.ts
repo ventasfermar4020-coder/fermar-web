@@ -33,6 +33,10 @@ export const products = pgTable("ec_products", {
   image: text("image"),
   stock: integer("stock").notNull().default(0),
   isActive: boolean("isActive").notNull().default(true),
+  // Digital product fields (for WordPress plugins)
+  isDigital: boolean("isDigital").notNull().default(false),
+  downloadUrl: text("downloadUrl"), // Path to RAR file (e.g., /downloads/my-plugin.rar)
+  activationCode: text("activationCode"), // Fixed activation code for RAR password (set manually)
   createdAt: timestamp("createdAt", { mode: "date" }).notNull().defaultNow(),
   updatedAt: timestamp("updatedAt", { mode: "date" }).notNull().defaultNow(),
 });
