@@ -1,5 +1,5 @@
 import { database } from "@/src/db";
-import { orders, orderItems } from "@/src/db/schema";
+import { orders } from "@/src/db/schema";
 import { eq } from "drizzle-orm";
 import Link from "next/link";
 import PrintButton from "./PrintButton";
@@ -36,12 +36,6 @@ export default async function ShippingLabelPage({
       </div>
     );
   }
-
-  // Fetch order items
-  const items = await database
-    .select()
-    .from(orderItems)
-    .where(eq(orderItems.orderId, orderId));
 
   return (
     <div className="min-h-screen bg-white">

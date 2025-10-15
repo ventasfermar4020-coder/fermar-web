@@ -112,8 +112,14 @@ export async function GET(req: NextRequest) {
 
     console.log(`✅ Serving file: ${filename} (${fileBuffer.length} bytes)`);
 
+    // Convert Buffer to ArrayBuffer for NextResponse
+    const arrayBuffer = fileBuffer.buffer.slice(
+      fileBuffer.byteOffset,
+      fileBuffer.byteOffset + fileBuffer.byteLength
+    );
+
     // Return file with appropriate headers
-    return new NextResponse(fileBuffer, {
+    return new NextResponse(arrayBuffer, {
       headers: {
         "Content-Type": "application/x-rar-compressed",
         "Content-Disposition": `attachment; filename="${filename}"`,
