@@ -80,7 +80,8 @@ function SuccessPageContent() {
             </h1>
             <p className="text-[#637381] mb-6">
               Tu pago fue procesado pero estamos verificando los detalles. Por
-              favor contacta al soporte si no recibes confirmación en 10 minutos.
+              favor contacta al soporte si no recibes confirmación en 10
+              minutos.
             </p>
             <div className="bg-gray-50 rounded-lg p-4 mb-6">
               <p className="text-sm text-[#637381] mb-1">ID de Transacción:</p>
@@ -152,7 +153,9 @@ function SuccessPageContent() {
                     </code>
                     <button
                       onClick={() => {
-                        navigator.clipboard.writeText(verificationStatus.product?.activationCode || "");
+                        navigator.clipboard.writeText(
+                          verificationStatus.product?.activationCode || ""
+                        );
                         setCopied(true);
                         setTimeout(() => setCopied(false), 2000);
                       }}
@@ -163,7 +166,8 @@ function SuccessPageContent() {
                     </button>
                   </div>
                   <p className="text-xs text-[#637381] mt-2">
-                    💡 Usa este código cuando WinRAR te pida la contraseña al descomprimir el archivo.
+                    💡 Usa este código cuando WinRAR te pida la contraseña al
+                    descomprimir el archivo.
                   </p>
                 </div>
               )}
@@ -180,7 +184,8 @@ function SuccessPageContent() {
               )}
 
               <p className="text-xs text-[#637381] text-center">
-                También te enviaremos el código de activación por correo electrónico
+                También te enviaremos el código de activación por correo
+                electrónico
               </p>
             </div>
           )}
