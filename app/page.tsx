@@ -6,7 +6,7 @@ import { eq } from "drizzle-orm";
 import ProductGrid from "./components/ProductGrid";
 
 // Force dynamic rendering - don't prerender at build time
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 export default async function Home() {
   // Fetch active products from database
@@ -53,7 +53,8 @@ export default async function Home() {
 
         {/* Section Description */}
         <p className="text-[#676767] text-[19px] leading-[36px] mb-12">
-          Encuentra el regalo perfecto para esa persona especial.
+          Encuentra el regalo perfecto para esa persona especial. Todos los
+          productos incluyen costo de envío gratis.
         </p>
 
         {/* Category Tabs */}
