@@ -10,7 +10,7 @@ export default function ConocenosPage() {
       description:
         "Con más de 40 años de experiencia en el sector, Jorge lidera nuestro equipo con pasión y dedicación.",
       image: "/staff/jorge.png",
-      email: "ventasfernar4020@gmail.com",
+      email: "ventasfermar4020@gmail.com",
     },
     {
       id: 2,
@@ -153,10 +153,10 @@ export default function ConocenosPage() {
               </div>
               <h3 className="text-[#212B36] font-semibold mb-2">Email</h3>
               <a
-                href="mailto:ventasfernar4020@gmail.com"
+                href="mailto:ventasfermar4020@gmail.com"
                 className="text-[#637381] hover:text-[#EC2A2A] transition-colors"
               >
-                ventasfernar4020@gmail.com
+                ventasfermar4020@gmail.com
               </a>
             </div>
 
