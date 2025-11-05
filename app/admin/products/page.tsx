@@ -1,7 +1,11 @@
 import Link from "next/link";
+import Image from "next/image";
 import { database } from "@/src/db";
 import { products } from "@/src/db/schema";
 import { desc } from "drizzle-orm";
+
+// Force dynamic rendering to prevent build-time database queries
+export const dynamic = 'force-dynamic';
 
 export default async function ProductsListPage() {
   const allProducts = await database
@@ -63,9 +67,11 @@ export default async function ProductsListPage() {
                     <tr key={product.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap">
                         {product.image ? (
-                          <img
+                          <Image
                             src={product.image}
                             alt={product.name}
+                            width={48}
+                            height={48}
                             className="h-12 w-12 object-cover rounded"
                           />
                         ) : (
