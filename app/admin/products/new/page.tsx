@@ -238,6 +238,7 @@ export default function NewProductPage() {
               {imagePreview && (
                 <div className="mt-4">
                   <p className="text-sm text-gray-600 mb-2">Vista previa:</p>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={imagePreview}
                     alt="Preview"
