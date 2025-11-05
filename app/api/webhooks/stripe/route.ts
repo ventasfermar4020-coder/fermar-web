@@ -3,6 +3,10 @@ import Stripe from "stripe";
 import { database } from "@/src/db";
 import { orders, orderItems, products } from "@/src/db/schema";
 import { eq, sql } from "drizzle-orm";
+import { getResendClient } from "@/src/lib/email";
+import { env } from "@/src/env";
+import { generateOwnerOrderEmail } from "@/src/emails/owner-new-order";
+import { generateCustomerOrderConfirmationEmail } from "@/src/emails/customer-order-confirmation";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2025-09-30.clover",
@@ -96,14 +100,27 @@ export async function POST(req: NextRequest) {
           return; // Exit early, don't decrement stock or create order
         }
 
-        // Decrement product stock
-        await tx
-          .update(products)
-          .set({
-            stock: sql`${products.stock} - 1`,
-            updatedAt: new Date(),
-          })
-          .where(eq(products.id, productId));
+        // Get product details to check if it's digital
+        const [product] = await tx
+          .select()
+          .from(products)
+          .where(eq(products.id, productId))
+          .limit(1);
+
+        // Only decrement stock for physical products (not digital)
+        if (product && !product.isDigital) {
+          await tx
+            .update(products)
+            .set({
+              stock: sql`${products.stock} - 1`,
+              updatedAt: new Date(),
+            })
+            .where(eq(products.id, productId));
+
+          console.log(`✅ Stock decremented for physical product: ${productId}`);
+        } else if (product?.isDigital) {
+          console.log(`ℹ️ Digital product - stock not decremented: ${productId}`);
+        }
 
         // Create order in database
         const [order] = await tx
@@ -133,7 +150,73 @@ export async function POST(req: NextRequest) {
         });
 
         console.log(`✅ Order created: ${order.id} for payment ${paymentIntent.id}`);
-        console.log(`✅ Stock decremented for product: ${productId}`);
+
+        // Send emails after successful order creation
+        try {
+          // Check if email configuration is available
+          if (!env.RESEND_API_KEY || !env.OWNER_EMAIL) {
+            console.log("⚠️ Email not configured - skipping email notifications");
+            console.log("  Set RESEND_API_KEY and OWNER_EMAIL environment variables to enable emails");
+            return; // Skip email sending
+          }
+
+          // Fetch the complete order with items and product details for emails
+          const orderWithItems = await tx
+            .select()
+            .from(orders)
+            .where(eq(orders.id, order.id))
+            .limit(1);
+
+          const items = await tx
+            .select({
+              id: orderItems.id,
+              orderId: orderItems.orderId,
+              productId: orderItems.productId,
+              quantity: orderItems.quantity,
+              priceAtPurchase: orderItems.priceAtPurchase,
+              productNameSnapshot: orderItems.productNameSnapshot,
+              product: products,
+            })
+            .from(orderItems)
+            .leftJoin(products, eq(orderItems.productId, products.id))
+            .where(eq(orderItems.orderId, order.id));
+
+          // Get Resend client
+          const resend = getResendClient();
+
+          // Send email to owner
+          const ownerEmailHtml = generateOwnerOrderEmail({
+            order: orderWithItems[0],
+            items,
+          });
+
+          await resend.emails.send({
+            from: "Notificaciones <onboarding@resend.dev>",
+            to: env.OWNER_EMAIL,
+            subject: `Nueva Orden #${order.id} - $${Number(order.totalAmount).toFixed(2)} MXN`,
+            html: ownerEmailHtml,
+          });
+
+          console.log(`📧 Owner notification email sent to ${env.OWNER_EMAIL}`);
+
+          // Send confirmation email to customer
+          const customerEmailHtml = generateCustomerOrderConfirmationEmail({
+            order: orderWithItems[0],
+            items,
+          });
+
+          await resend.emails.send({
+            from: "Fermar <onboarding@resend.dev>",
+            to: metadata.email,
+            subject: `Confirmación de Orden #${order.id}`,
+            html: customerEmailHtml,
+          });
+
+          console.log(`📧 Customer confirmation email sent to ${metadata.email}`);
+        } catch (emailError) {
+          // Log email errors but don't fail the webhook
+          console.error("⚠️ Error sending emails (order still created):", emailError);
+        }
       });
 
       return NextResponse.json({ received: true });

@@ -184,8 +184,8 @@ function SuccessPageContent() {
               )}
 
               <p className="text-xs text-[#637381] text-center">
-                También te enviaremos el código de activación por correo
-                electrónico
+                Guarda esta página para referencia futura o revisa tu correo
+                electrónico para los detalles de tu compra
               </p>
             </div>
           )}
