@@ -121,7 +121,7 @@ async function main() {
           "Set completo de productos Avon para el cuidado de la piel. Incluye crema hidratante, sérum y limpiador facial.",
         price: "649.00",
         stripePriceId: null,
-        image: "/products/wild-country.jpeg",
+        image: "/products/avon-def.png",
         stock: 35,
         isActive: true,
       },
