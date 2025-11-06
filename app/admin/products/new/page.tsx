@@ -23,6 +23,7 @@ export default function NewProductPage() {
   } = useForm<ProductFormData>();
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
 
@@ -47,6 +48,7 @@ export default function NewProductPage() {
       // Upload image first
       let imagePath = null;
       if (data.image && data.image.length > 0) {
+        setIsUploadingImage(true);
         const formData = new FormData();
         formData.append("image", data.image[0]);
 
@@ -55,12 +57,23 @@ export default function NewProductPage() {
           body: formData,
         });
 
+        const uploadResult = await uploadResponse.json();
+
         if (!uploadResponse.ok) {
-          throw new Error("Error al subir la imagen");
+          // Show detailed error from API
+          const errorMsg = uploadResult.details
+            ? `${uploadResult.error}: ${uploadResult.details}`
+            : uploadResult.error || "Error al subir la imagen";
+          throw new Error(errorMsg);
         }
 
-        const uploadResult = await uploadResponse.json();
+        if (!uploadResult.path) {
+          throw new Error("Error: La imagen se subió pero no se recibió la ruta");
+        }
+
         imagePath = uploadResult.path;
+        setIsUploadingImage(false);
+        console.log("Imagen subida exitosamente:", imagePath);
       }
 
       // Create product
@@ -81,14 +94,18 @@ export default function NewProductPage() {
         body: JSON.stringify(productData),
       });
 
+      const result = await response.json();
+
       if (!response.ok) {
-        throw new Error("Error al crear el producto");
+        const errorMsg = result.error || "Error al crear el producto";
+        throw new Error(errorMsg);
       }
 
       // Redirect to success or products list
       router.push("/admin/products");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error desconocido");
+      setIsUploadingImage(false);
     } finally {
       setIsSubmitting(false);
     }
@@ -255,12 +272,17 @@ export default function NewProductPage() {
                 disabled={isSubmitting}
                 className="flex-1 bg-blue-600 text-white py-3 px-6 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
               >
-                {isSubmitting ? "Guardando..." : "Guardar Producto"}
+                {isUploadingImage
+                  ? "Subiendo imagen..."
+                  : isSubmitting
+                  ? "Guardando producto..."
+                  : "Guardar Producto"}
               </button>
               <button
                 type="button"
                 onClick={() => router.back()}
-                className="flex-1 bg-gray-200 text-gray-700 py-3 px-6 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 font-medium"
+                disabled={isSubmitting}
+                className="flex-1 bg-gray-200 text-gray-700 py-3 px-6 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
               >
                 Cancelar
               </button>
