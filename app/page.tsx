@@ -39,7 +39,6 @@ export default async function Home() {
             CONÓCENOS
           </Link>
         </div>
-
         {/* Section Title */}
         <div className="mb-6 flex justify-center">
           <Image
@@ -50,13 +49,12 @@ export default async function Home() {
             className="object-contain"
           />
         </div>
-
         {/* Section Description */}
         <p className="text-[#676767] text-[19px] leading-[36px] mb-12">
-          Encuentra el regalo perfecto para esa persona especial. Todos los
-          productos incluyen costo de envío gratis.
+          Encuentra el regalo perfecto para esa persona especial.
         </p>
-
+        <br />
+        <p>Todos los productos incluyen costo de envío gratis.</p>
         {/* Category Tabs */}
         <div className="flex gap-12 mb-16">
           {categories.map((category, index) => (
@@ -72,10 +70,8 @@ export default async function Home() {
             </button>
           ))}
         </div>
-
         {/* Product Grid */}
         <ProductGrid products={activeProducts} />
-
         {/* Navigation Dots */}
         <div className="flex items-center justify-center gap-4">
           {/* Left Arrow */}
@@ -118,7 +114,6 @@ export default async function Home() {
             </svg>
           </button>
         </div>
-
         {/* Wishlist Icon */}
         <div className="absolute right-[118px] top-[445px] w-[35px] h-[35px] bg-[#DBE1E6] rounded-full flex items-center justify-center">
           <svg
