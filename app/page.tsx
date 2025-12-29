@@ -54,7 +54,7 @@ export default async function Home() {
           Encuentra el regalo perfecto para esa persona especial.
         </p>
         <br />
-        <p>
+        <p className="text-[#676767] text-[19px] leading-[36px] mb-12">
           Todos los productos incluyen costo de envío gratis por correos de
           México.
         </p>
