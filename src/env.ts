@@ -5,8 +5,8 @@ const envSchema = z.object({
   NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
   RESEND_API_KEY: z.string().min(1).optional(),
   OWNER_EMAIL: z.string().email().optional(),
-  ADMIN_USERNAME: z.string().min(1),
-  ADMIN_PASSWORD: z.string().min(1),
+  ADMIN_USERNAME: z.string().min(1).optional(),
+  ADMIN_PASSWORD: z.string().min(1).optional(),
 });
 
 export const env = envSchema.parse({

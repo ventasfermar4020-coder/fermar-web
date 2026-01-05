@@ -31,6 +31,16 @@ function timingSafeEqual(a: string, b: string): boolean {
  */
 
 export async function middleware(request: NextRequest) {
+  // Safety check: If credentials not configured, deny access
+  if (!env.ADMIN_USERNAME || !env.ADMIN_PASSWORD) {
+    return new NextResponse('Admin authentication not configured', {
+      status: 503,
+      headers: {
+        'WWW-Authenticate': 'Basic realm="Admin Area"',
+      },
+    });
+  }
+
   // Get Authorization header
   const authHeader = request.headers.get('authorization');
 
