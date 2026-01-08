@@ -73,6 +73,7 @@ export default async function ProductsListPage() {
                             width={48}
                             height={48}
                             className="h-12 w-12 object-cover rounded"
+                            unoptimized={process.env.NODE_ENV === 'development'}
                           />
                         ) : (
                           <div className="h-12 w-12 bg-gray-200 rounded flex items-center justify-center">
