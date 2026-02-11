@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import CheckoutModal from "./CheckoutModal";
 
 type Product = {
@@ -21,6 +21,11 @@ export default function ProductGrid({ products }: { products: Product[] }) {
     price: string;
     image: string;
   } | null>(null);
+  const [brokenImages, setBrokenImages] = useState<Set<number>>(new Set());
+
+  const handleImageError = useCallback((productId: number) => {
+    setBrokenImages((prev) => new Set(prev).add(productId));
+  }, []);
 
   const bgColors = ["#ECE5D8", "#F4ECDD", "#F9F1E3", "#FFFCF8"];
 
@@ -43,15 +48,16 @@ export default function ProductGrid({ products }: { products: Product[] }) {
                 className="h-64 flex items-center justify-center"
                 style={{ backgroundColor: bgColor }}
               >
-                {product.image ? (
-                  <Image
-                    src={product.image}
-                    alt={product.name}
-                    width={200}
-                    height={200}
-                    className="object-contain max-h-[240px] w-auto"
-                    unoptimized={process.env.NODE_ENV === 'development'}
-                  />
+                {product.image && !brokenImages.has(product.id) ? (
+                  <div className="relative w-full h-[240px]">
+                    <Image
+                      src={product.image}
+                      alt={product.name}
+                      fill
+                      className="object-contain p-4"
+                      onError={() => handleImageError(product.id)}
+                    />
+                  </div>
                 ) : (
                   <div className="h-[240px] w-full flex items-center justify-center text-gray-400">
                     <div className="text-center">

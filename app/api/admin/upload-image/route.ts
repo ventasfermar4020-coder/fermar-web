@@ -42,8 +42,8 @@ export async function POST(request: NextRequest) {
     const bytes = await image.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
-    // Create unique filename
-    const fileExtension = path.extname(image.name);
+    // Create unique filename with sanitized extension (lowercase, no spaces)
+    const fileExtension = path.extname(image.name).toLowerCase();
     const randomName = randomBytes(16).toString("hex");
     const filename = `${randomName}${fileExtension}`;
 

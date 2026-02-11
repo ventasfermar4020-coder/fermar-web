@@ -15,7 +15,8 @@
     "db:studio": "drizzle-kit studio",
     "db:clear": "tsx ./src/db/clear.ts",
     "db:seed": "tsx ./src/db/seed.ts",
-    "db:reset": "npm run db:clear && npm run db:migrate && npm run db:seed"
+    "db:reset": "npm run db:clear && npm run db:migrate && npm run db:seed",
+    "validate:images": "tsx ./scripts/validate-images.ts"
   },
   "dependencies": {
     "@stripe/react-stripe-js": "^5.0.0",
