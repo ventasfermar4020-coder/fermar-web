@@ -101,7 +101,9 @@ export async function middleware(request: NextRequest) {
 export const config = {
   matcher: [
     '/admin/products/new',
+    '/admin/products/:path*/edit',
     '/api/admin/products',
+    '/api/admin/products/:path*',
     '/api/admin/upload-image',
   ],
 };

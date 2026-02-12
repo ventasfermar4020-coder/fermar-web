@@ -60,6 +60,9 @@ export default async function ProductsListPage() {
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Estado
                     </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Acciones
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
@@ -120,6 +123,14 @@ export default async function ProductsListPage() {
                         >
                           {product.isActive ? "Activo" : "Inactivo"}
                         </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <Link
+                          href={`/admin/products/${product.id}/edit`}
+                          className="text-blue-600 hover:text-blue-800 font-medium text-sm"
+                        >
+                          Editar
+                        </Link>
                       </td>
                     </tr>
                   ))}
