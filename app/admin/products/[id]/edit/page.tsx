@@ -13,7 +13,7 @@ type ProductFormData = {
   image: FileList;
 };
 
-const PRESET_PROMPTS = [];
+const PRESET_PROMPTS: { label: string; prompt: string }[] = [];
 
 const DEFAULT_PROMPT =
   "Edita esta foto de producto para e-commerce. El producto se muestra dentro de su empaque/caja original. Transforma la imagen para mostrar todos los productos/artículos contenidos fuera del empaque, organizados de forma atractiva sobre un fondo neutro limpio de color blanco o gris claro. Cada producto individual debe estar claramente visible, bien iluminado con luz de estudio suave, y separado del resto para que el cliente pueda apreciar cada pieza incluida en el paquete. Elimina por completo el empaque, caja o blíster de la imagen final. Agrega sombras sutiles naturales debajo de cada producto. La disposición debe ser ordenada y profesional, ideal para catálogo de tienda en línea. La imagen final debe verse como una fotografía profesional de los productos desempacados y exhibidos individualmente.";
