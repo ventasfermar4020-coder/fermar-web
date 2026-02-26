@@ -13,26 +13,10 @@ type ProductFormData = {
   image: FileList;
 };
 
-const PRESET_PROMPTS = [
-  {
-    label: "Fondo neutro premium",
-    prompt:
-      "Edita esta foto de producto para e-commerce. Mantén intacto el producto principal. Reemplaza el fondo por un fondo neutro premium de color gris claro degradado con iluminación de estudio suave. Agrega sombras sutiles naturales debajo del producto. La imagen debe verse profesional y lista para catálogo.",
-  },
-  {
-    label: "Look de estudio",
-    prompt:
-      "Edita esta foto de producto para e-commerce. Mantén intacto el producto principal. Aplica iluminación profesional de estudio fotográfico con luces key y fill. Agrega reflejos controlados, sombras suaves y un fondo blanco puro. La imagen debe parecer tomada en un estudio profesional.",
-  },
-  {
-    label: "Contexto suave minimalista",
-    prompt:
-      "Edita esta foto de producto para e-commerce. Mantén intacto el producto principal. Coloca el producto en un entorno minimalista suave con superficie clara y fondo desenfocado en tonos neutros. Agrega iluminación natural difusa y sombras delicadas. La imagen debe transmitir elegancia y simplicidad.",
-  },
-];
+const PRESET_PROMPTS = [];
 
 const DEFAULT_PROMPT =
-  "Edita esta foto de producto para e-commerce. Mantén intacto el producto principal (misma forma, proporciones, textura, color base, logotipo y detalles de marca). Solo mejora elementos secundarios: iluminación, sombras suaves, fondo limpio/neutral, reflejos controlados y nitidez general. No cambies el diseño del producto, no agregues ni quites partes, no cambies el encuadre principal. Entrega una imagen realista y comercial lista para catálogo.";
+  "Edita esta foto de producto para e-commerce. El producto se muestra dentro de su empaque/caja original. Transforma la imagen para mostrar todos los productos/artículos contenidos fuera del empaque, organizados de forma atractiva sobre un fondo neutro limpio de color blanco o gris claro. Cada producto individual debe estar claramente visible, bien iluminado con luz de estudio suave, y separado del resto para que el cliente pueda apreciar cada pieza incluida en el paquete. Elimina por completo el empaque, caja o blíster de la imagen final. Agrega sombras sutiles naturales debajo de cada producto. La disposición debe ser ordenada y profesional, ideal para catálogo de tienda en línea. La imagen final debe verse como una fotografía profesional de los productos desempacados y exhibidos individualmente.";
 
 export default function EditProductPage() {
   const router = useRouter();

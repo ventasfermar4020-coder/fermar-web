@@ -6,7 +6,9 @@ services:
     ports:
       - 5433:5432
     environment:
-      POSTGRES_PASSWORD: your_password
+      POSTGRES_USER: fermar
+      POSTGRES_PASSWORD: fermar123
+      POSTGRES_DB: fermar
       PGDATA: /data/postgres
     volumes:
       - postgres:/data/postgres
