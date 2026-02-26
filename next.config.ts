@@ -2,10 +2,19 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   images: {
-    // Allow local image optimization
     unoptimized: true,
-    // Configure remote patterns if needed for production CDN later
-    remotePatterns: [],
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "*.digitaloceanspaces.com",
+        pathname: "/**",
+      },
+      {
+        protocol: "https",
+        hostname: "*.cdn.digitaloceanspaces.com",
+        pathname: "/**",
+      },
+    ],
   },
 };
 

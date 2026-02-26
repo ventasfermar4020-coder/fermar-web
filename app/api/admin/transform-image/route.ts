@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { writeFile, mkdir } from "fs/promises";
-import path from "path";
 import { randomBytes } from "crypto";
-import { existsSync } from "fs";
 import { GoogleGenAI } from "@google/genai";
+import { uploadImageToSpaces } from "@/src/lib/spaces";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
 const ALLOWED_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp", "image/gif"];
@@ -103,24 +101,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Save the transformed image as PNG
+    // Upload transformed image to DigitalOcean Spaces
     const transformedBuffer = Buffer.from(imagePart.inlineData.data!, "base64");
     const randomName = randomBytes(16).toString("hex");
     const filename = `${randomName}.png`;
 
-    const productsDir = path.join(process.cwd(), "public", "products");
-    if (!existsSync(productsDir)) {
-      await mkdir(productsDir, { recursive: true });
-    }
-
-    const filepath = path.join(productsDir, filename);
-    await writeFile(filepath, transformedBuffer);
-
-    const publicPath = `/products/${filename}`;
+    const publicUrl = await uploadImageToSpaces(transformedBuffer, "image/png", filename);
 
     return NextResponse.json({
       success: true,
-      path: publicPath,
+      path: publicUrl,
       filename,
       appliedPrompt: prompt,
     });

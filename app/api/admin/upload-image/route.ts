@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { writeFile, mkdir } from "fs/promises";
 import path from "path";
 import { randomBytes } from "crypto";
-import { existsSync } from "fs";
+import { uploadImageToSpaces } from "@/src/lib/spaces";
 
 // Max file size: 5MB
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
@@ -42,38 +41,21 @@ export async function POST(request: NextRequest) {
     const bytes = await image.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
-    // Create unique filename with sanitized extension (lowercase, no spaces)
     const fileExtension = path.extname(image.name).toLowerCase();
     const randomName = randomBytes(16).toString("hex");
     const filename = `${randomName}${fileExtension}`;
 
-    // Ensure the products directory exists
-    const productsDir = path.join(process.cwd(), "public", "products");
-
-    if (!existsSync(productsDir)) {
-      console.log("Creating products directory:", productsDir);
-      await mkdir(productsDir, { recursive: true });
-    }
-
-    // Save to public/products directory
-    const filepath = path.join(productsDir, filename);
-
-    console.log("Saving image to:", filepath);
-    await writeFile(filepath, buffer);
-    console.log("Image saved successfully:", filename);
-
-    // Return the path relative to public directory
-    const publicPath = `/products/${filename}`;
+    // Upload to DigitalOcean Spaces
+    const publicUrl = await uploadImageToSpaces(buffer, image.type, filename);
 
     return NextResponse.json({
       success: true,
-      path: publicPath,
+      path: publicUrl,
       filename: filename,
     });
   } catch (error) {
     console.error("Error uploading image:", error);
 
-    // Return more specific error message
     const errorMessage = error instanceof Error ? error.message : "Error desconocido";
 
     return NextResponse.json(
