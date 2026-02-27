@@ -106,11 +106,11 @@ export async function POST(request: NextRequest) {
     const randomName = randomBytes(16).toString("hex");
     const filename = `${randomName}.png`;
 
-    const publicUrl = await uploadImageToSpaces(transformedBuffer, "image/png", filename);
+    const proxyPath = await uploadImageToSpaces(transformedBuffer, "image/png", filename);
 
     return NextResponse.json({
       success: true,
-      path: publicUrl,
+      path: proxyPath,
       filename,
       appliedPrompt: prompt,
     });

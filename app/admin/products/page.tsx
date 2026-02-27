@@ -3,6 +3,7 @@ import Image from "next/image";
 import { database } from "@/src/db";
 import { products } from "@/src/db/schema";
 import { desc } from "drizzle-orm";
+import { normalizeImageUrl } from "@/src/lib/image-utils";
 
 // Force dynamic rendering to prevent build-time database queries
 export const dynamic = 'force-dynamic';
@@ -71,12 +72,11 @@ export default async function ProductsListPage() {
                       <td className="px-6 py-4 whitespace-nowrap">
                         {product.image ? (
                           <Image
-                            src={product.image}
+                            src={normalizeImageUrl(product.image)}
                             alt={product.name}
                             width={48}
                             height={48}
                             className="h-12 w-12 object-cover rounded"
-                            unoptimized={process.env.NODE_ENV === 'development'}
                           />
                         ) : (
                           <div className="h-12 w-12 bg-gray-200 rounded flex items-center justify-center">

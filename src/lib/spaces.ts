@@ -1,4 +1,4 @@
-import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+import { S3Client, PutObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
 import { env } from "@/src/env";
 
 function getSpacesClient() {
@@ -48,7 +48,21 @@ export async function uploadImageToSpaces(
     })
   );
 
-  // Return full CDN URL
-  const cdnBase = env.DO_SPACES_CDN_BASE_URL.replace(/\/$/, "");
-  return `${cdnBase}/${key}`;
+  // Return proxy path instead of CDN URL
+  return `/api/images/${key}`;
+}
+
+export async function getImageFromSpaces(key: string) {
+  const client = getSpacesClient();
+
+  if (!env.DO_SPACES_BUCKET) {
+    throw new Error("DO_SPACES_BUCKET is not configured.");
+  }
+
+  return client.send(
+    new GetObjectCommand({
+      Bucket: env.DO_SPACES_BUCKET,
+      Key: key,
+    })
+  );
 }

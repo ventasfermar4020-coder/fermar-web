@@ -3,6 +3,7 @@
 import { useForm } from "react-hook-form";
 import { useState, useEffect, useRef } from "react";
 import { useRouter, useParams } from "next/navigation";
+import { normalizeImageUrl } from "@/src/lib/image-utils";
 
 type ProductFormData = {
   name: string;
@@ -68,7 +69,7 @@ export default function EditProductPage() {
         });
 
         if (product.image) {
-          setCurrentImage(product.image);
+          setCurrentImage(normalizeImageUrl(product.image));
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : "Error desconocido");

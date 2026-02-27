@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useState, useCallback } from "react";
 import CheckoutModal from "./CheckoutModal";
+import { normalizeImageUrl } from "@/src/lib/image-utils";
 
 type Product = {
   id: number;
@@ -51,7 +52,7 @@ export default function ProductGrid({ products }: { products: Product[] }) {
                 {product.image && !brokenImages.has(product.id) ? (
                   <div className="relative w-full h-[240px]">
                     <Image
-                      src={product.image}
+                      src={normalizeImageUrl(product.image)}
                       alt={product.name}
                       fill
                       className="object-contain p-4"

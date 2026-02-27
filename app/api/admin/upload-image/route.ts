@@ -46,11 +46,11 @@ export async function POST(request: NextRequest) {
     const filename = `${randomName}${fileExtension}`;
 
     // Upload to DigitalOcean Spaces
-    const publicUrl = await uploadImageToSpaces(buffer, image.type, filename);
+    const proxyPath = await uploadImageToSpaces(buffer, image.type, filename);
 
     return NextResponse.json({
       success: true,
-      path: publicUrl,
+      path: proxyPath,
       filename: filename,
     });
   } catch (error) {

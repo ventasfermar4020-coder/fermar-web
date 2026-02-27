@@ -6,12 +6,12 @@ const nextConfig: NextConfig = {
     remotePatterns: [
       {
         protocol: "https",
-        hostname: "*.digitaloceanspaces.com",
+        hostname: "fermar-images.sfo3.digitaloceanspaces.com",
         pathname: "/**",
       },
       {
         protocol: "https",
-        hostname: "*.cdn.digitaloceanspaces.com",
+        hostname: "fermar-images.sfo3.cdn.digitaloceanspaces.com",
         pathname: "/**",
       },
     ],
