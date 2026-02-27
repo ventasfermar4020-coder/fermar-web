@@ -44,7 +44,6 @@ export async function uploadImageToSpaces(
       Key: key,
       Body: buffer,
       ContentType: contentType,
-      ACL: "public-read",
     })
   );
 
