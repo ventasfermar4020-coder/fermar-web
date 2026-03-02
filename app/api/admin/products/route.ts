@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { database } from "@/src/db";
 import { products, productImages } from "@/src/db/schema";
-import { eq, asc } from "drizzle-orm";
+import { asc } from "drizzle-orm";
 
 type CreateProductRequest = {
   name: string;

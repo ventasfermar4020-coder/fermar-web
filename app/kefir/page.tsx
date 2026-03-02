@@ -1,8 +1,8 @@
 import Image from "next/image";
 import Link from "next/link";
 import { database } from "@/src/db";
-import { products } from "@/src/db/schema";
-import { eq, and, ilike } from "drizzle-orm";
+import { products, productImages } from "@/src/db/schema";
+import { eq, and, ilike, asc, inArray } from "drizzle-orm";
 import ProductGrid from "../components/ProductGrid";
 
 // Force dynamic rendering - don't prerender at build time
@@ -14,6 +14,30 @@ export default async function KefirPage() {
     .select()
     .from(products)
     .where(and(eq(products.isActive, true), ilike(products.name, "%kefir%")));
+
+  // Fetch images for those products
+  const productIds = kefirProducts.map((p) => p.id);
+  const allImages = productIds.length > 0
+    ? await database
+        .select()
+        .from(productImages)
+        .where(inArray(productImages.productId, productIds))
+        .orderBy(asc(productImages.sortOrder))
+    : [];
+
+  // Group images by productId
+  const imagesByProduct = new Map<number, { id: number; url: string; sortOrder: number }[]>();
+  for (const img of allImages) {
+    const list = imagesByProduct.get(img.productId) || [];
+    list.push({ id: img.id, url: img.url, sortOrder: img.sortOrder });
+    imagesByProduct.set(img.productId, list);
+  }
+
+  // Attach images array to each product
+  const kefirProductsWithImages = kefirProducts.map((product) => ({
+    ...product,
+    images: imagesByProduct.get(product.id) || [],
+  }));
 
   return (
     <div className="min-h-screen bg-white">
@@ -49,8 +73,8 @@ export default async function KefirPage() {
         </p>
 
         {/* Product Display */}
-        {kefirProducts.length > 0 ? (
-          <ProductGrid products={kefirProducts} />
+        {kefirProductsWithImages.length > 0 ? (
+          <ProductGrid products={kefirProductsWithImages} />
         ) : (
           <div className="text-center py-12">
             <p className="text-[#676767] text-lg">
