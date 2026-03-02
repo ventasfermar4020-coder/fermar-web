@@ -1,8 +1,8 @@
 import Image from "next/image";
 import Link from "next/link";
 import { database } from "@/src/db";
-import { products } from "@/src/db/schema";
-import { eq } from "drizzle-orm";
+import { products, productImages } from "@/src/db/schema";
+import { eq, asc } from "drizzle-orm";
 import ProductGrid from "./components/ProductGrid";
 
 // Force dynamic rendering - don't prerender at build time
@@ -14,6 +14,26 @@ export default async function Home() {
     .select()
     .from(products)
     .where(eq(products.isActive, true));
+
+  // Fetch all product images, sorted by sortOrder
+  const allImages = await database
+    .select()
+    .from(productImages)
+    .orderBy(asc(productImages.sortOrder));
+
+  // Group images by productId
+  const imagesByProduct = new Map<number, { url: string; sortOrder: number }[]>();
+  for (const img of allImages) {
+    const list = imagesByProduct.get(img.productId) || [];
+    list.push({ url: img.url, sortOrder: img.sortOrder });
+    imagesByProduct.set(img.productId, list);
+  }
+
+  // Attach images array to each product
+  const productsWithImages = activeProducts.map((product) => ({
+    ...product,
+    images: imagesByProduct.get(product.id) || [],
+  }));
 
   const categories = [
     { name: "Todos", active: true },
@@ -74,7 +94,7 @@ export default async function Home() {
           ))}
         </div>
         {/* Product Grid */}
-        <ProductGrid products={activeProducts} />
+        <ProductGrid products={productsWithImages} />
         {/* Navigation Dots */}
         <div className="flex items-center justify-center gap-4">
           {/* Left Arrow */}

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { database } from "@/src/db";
-import { products } from "@/src/db/schema";
-import { eq } from "drizzle-orm";
+import { products, productImages } from "@/src/db/schema";
+import { eq, asc } from "drizzle-orm";
 
 export async function GET(
   _request: NextRequest,
@@ -30,7 +30,19 @@ export async function GET(
       );
     }
 
-    return NextResponse.json({ success: true, product });
+    const images = await database
+      .select()
+      .from(productImages)
+      .where(eq(productImages.productId, productId))
+      .orderBy(asc(productImages.sortOrder));
+
+    return NextResponse.json({
+      success: true,
+      product: {
+        ...product,
+        images: images.map((img) => ({ id: img.id, url: img.url, sortOrder: img.sortOrder })),
+      },
+    });
   } catch (error) {
     console.error("Error fetching product:", error);
     return NextResponse.json(
@@ -47,6 +59,7 @@ type UpdateProductRequest = {
   stock: number;
   isDigital: boolean;
   image: string | null;
+  images?: string[];
 };
 
 export async function PUT(
@@ -101,7 +114,12 @@ export async function PUT(
       );
     }
 
-    // Update product — keep existing image if no new one provided
+    // Determine primary image from images array or single image field
+    const primaryImage = body.images && body.images.length > 0
+      ? body.images[0]
+      : body.image ?? existing.image;
+
+    // Update product
     const [updated] = await database
       .update(products)
       .set({
@@ -110,11 +128,30 @@ export async function PUT(
         price: body.price.toString(),
         stock: body.isDigital ? 0 : body.stock,
         isDigital: body.isDigital,
-        image: body.image ?? existing.image,
+        image: primaryImage,
         updatedAt: new Date(),
       })
       .where(eq(products.id, productId))
       .returning();
+
+    // Update product images if images array was provided
+    if (body.images) {
+      // Delete all existing images for this product
+      await database
+        .delete(productImages)
+        .where(eq(productImages.productId, productId));
+
+      // Insert new images with proper sort order
+      if (body.images.length > 0) {
+        await database.insert(productImages).values(
+          body.images.map((url, index) => ({
+            productId,
+            url,
+            sortOrder: index,
+          }))
+        );
+      }
+    }
 
     return NextResponse.json({ success: true, product: updated });
   } catch (error) {

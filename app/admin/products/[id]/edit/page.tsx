@@ -11,8 +11,18 @@ type ProductFormData = {
   price: number;
   stock: number;
   isDigital: boolean;
-  image: FileList;
 };
+
+type ImageFile = {
+  file: File;
+  preview: string;
+};
+
+// A unified item that can represent either an existing (already-uploaded) image
+// or a newly selected local file.
+type CarouselItem =
+  | { type: "existing"; url: string }
+  | { type: "new"; localIndex: number };
 
 const PRESET_PROMPTS: { label: string; prompt: string }[] = [];
 
@@ -34,8 +44,11 @@ export default function EditProductPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [currentImage, setCurrentImage] = useState<string | null>(null);
+
+  // Multi-image state
+  const [carouselItems, setCarouselItems] = useState<CarouselItem[]>([]);
+  const [newImages, setNewImages] = useState<ImageFile[]>([]);
+  const imageInputRef = useRef<HTMLInputElement | null>(null);
 
   // AI Transform state
   const [aiPrompt, setAiPrompt] = useState(DEFAULT_PROMPT);
@@ -43,8 +56,6 @@ export default function EditProductPage() {
   const [transformedPreview, setTransformedPreview] = useState<string | null>(null);
   const [transformedPath, setTransformedPath] = useState<string | null>(null);
   const [transformError, setTransformError] = useState<string | null>(null);
-  const [transformSource, setTransformSource] = useState<"upload" | "current" | null>(null);
-  const imageInputRef = useRef<HTMLInputElement | null>(null);
 
   const isDigital = watch("isDigital");
 
@@ -68,8 +79,17 @@ export default function EditProductPage() {
           isDigital: product.isDigital,
         });
 
-        if (product.image) {
-          setCurrentImage(normalizeImageUrl(product.image));
+        // Load existing images from the product_images table
+        if (product.images && product.images.length > 0) {
+          setCarouselItems(
+            product.images.map((img: { url: string }) => ({
+              type: "existing" as const,
+              url: img.url,
+            }))
+          );
+        } else if (product.image) {
+          // Fallback: use the legacy single image field
+          setCarouselItems([{ type: "existing", url: product.image }]);
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : "Error desconocido");
@@ -81,49 +101,95 @@ export default function EditProductPage() {
     fetchProduct();
   }, [params.id, reset]);
 
-  const onImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-      // Reset transform when new image is selected
-      setTransformedPreview(null);
-      setTransformedPath(null);
-      setTransformError(null);
-      setTransformSource(null);
+  // ---- Image helpers ----
+
+  const getPreviewUrl = (item: CarouselItem): string => {
+    if (item.type === "existing") return normalizeImageUrl(item.url);
+    return newImages[item.localIndex]?.preview ?? "";
+  };
+
+  const onImagesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+
+    const addedImages: ImageFile[] = [];
+    const addedItems: CarouselItem[] = [];
+    const baseIndex = newImages.length;
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      addedImages.push({ file, preview: URL.createObjectURL(file) });
+      addedItems.push({ type: "new", localIndex: baseIndex + i });
+    }
+
+    setNewImages((prev) => [...prev, ...addedImages]);
+    setCarouselItems((prev) => [...prev, ...addedItems]);
+
+    // Reset transform when images change
+    setTransformedPreview(null);
+    setTransformedPath(null);
+    setTransformError(null);
+
+    // Reset the input so the same file can be re-selected
+    if (imageInputRef.current) {
+      imageInputRef.current.value = "";
     }
   };
 
-  const handleTransform = async (source: "upload" | "current") => {
+  const removeImage = (index: number) => {
+    setCarouselItems((prev) => {
+      const item = prev[index];
+      // Revoke object URL for local files
+      if (item.type === "new") {
+        const img = newImages[item.localIndex];
+        if (img) URL.revokeObjectURL(img.preview);
+      }
+      const updated = [...prev];
+      updated.splice(index, 1);
+      return updated;
+    });
+  };
+
+  const moveImage = (index: number, direction: "up" | "down") => {
+    setCarouselItems((prev) => {
+      const targetIndex = direction === "up" ? index - 1 : index + 1;
+      if (targetIndex < 0 || targetIndex >= prev.length) return prev;
+      const updated = [...prev];
+      [updated[index], updated[targetIndex]] = [updated[targetIndex], updated[index]];
+      return updated;
+    });
+  };
+
+  // ---- AI Transform ----
+
+  const handleTransform = async () => {
+    if (carouselItems.length === 0) {
+      setTransformError("Primero selecciona una imagen para transformar");
+      return;
+    }
+
     setIsTransforming(true);
     setTransformError(null);
-    setTransformSource(source);
 
     try {
       const formData = new FormData();
       formData.append("prompt", aiPrompt);
 
-      if (source === "upload") {
-        const input = imageInputRef.current;
-        const file = input?.files?.[0];
+      const firstItem = carouselItems[0];
+      if (firstItem.type === "new") {
+        const file = newImages[firstItem.localIndex]?.file;
         if (!file) {
-          setTransformError("Primero selecciona una imagen para transformar");
+          setTransformError("No hay imagen disponible para transformar");
           setIsTransforming(false);
           return;
         }
         formData.append("image", file);
-      } else if (source === "current" && currentImage) {
-        // Fetch the current image and send it
-        const imageResponse = await fetch(currentImage);
+      } else {
+        // Existing image — fetch it and send as blob
+        const imageUrl = normalizeImageUrl(firstItem.url);
+        const imageResponse = await fetch(imageUrl);
         const blob = await imageResponse.blob();
         formData.append("image", blob, "current-image.png");
-      } else {
-        setTransformError("No hay imagen disponible para transformar");
-        setIsTransforming(false);
-        return;
       }
 
       const response = await fetch("/api/admin/transform-image", {
@@ -149,40 +215,58 @@ export default function EditProductPage() {
     }
   };
 
+  // ---- Submit ----
+
   const onSubmit = async (data: ProductFormData) => {
     setIsSubmitting(true);
     setError(null);
 
     try {
-      let imagePath: string | null = transformedPath; // Use transformed image if available
+      // Build the final ordered images array
+      const finalImages: string[] = [];
 
-      // Upload new image if no transform was applied and a new file was selected
-      if (!imagePath && data.image && data.image.length > 0) {
-        setIsUploadingImage(true);
-        const formData = new FormData();
-        formData.append("image", data.image[0]);
-
-        const uploadResponse = await fetch("/api/admin/upload-image", {
-          method: "POST",
-          body: formData,
-        });
-
-        const uploadResult = await uploadResponse.json();
-
-        if (!uploadResponse.ok) {
-          const errorMsg = uploadResult.details
-            ? `${uploadResult.error}: ${uploadResult.details}`
-            : uploadResult.error || "Error al subir la imagen";
-          throw new Error(errorMsg);
-        }
-
-        if (!uploadResult.path) {
-          throw new Error("Error: La imagen se subió pero no se recibió la ruta");
-        }
-
-        imagePath = uploadResult.path;
-        setIsUploadingImage(false);
+      // If there's a transformed image, it replaces the first image
+      const startIndex = transformedPath ? 1 : 0;
+      if (transformedPath) {
+        finalImages.push(transformedPath);
       }
+
+      for (let i = startIndex; i < carouselItems.length; i++) {
+        const item = carouselItems[i];
+        if (item.type === "existing") {
+          finalImages.push(item.url);
+        } else {
+          // Upload the new local file
+          setIsUploadingImage(true);
+          const file = newImages[item.localIndex]?.file;
+          if (!file) continue;
+
+          const formData = new FormData();
+          formData.append("image", file);
+
+          const uploadResponse = await fetch("/api/admin/upload-image", {
+            method: "POST",
+            body: formData,
+          });
+
+          const uploadResult = await uploadResponse.json();
+
+          if (!uploadResponse.ok) {
+            const errorMsg = uploadResult.details
+              ? `${uploadResult.error}: ${uploadResult.details}`
+              : uploadResult.error || "Error al subir la imagen";
+            throw new Error(errorMsg);
+          }
+
+          if (!uploadResult.path) {
+            throw new Error("Error: La imagen se subió pero no se recibió la ruta");
+          }
+
+          finalImages.push(uploadResult.path);
+        }
+      }
+
+      setIsUploadingImage(false);
 
       // Update product
       const productData = {
@@ -191,7 +275,8 @@ export default function EditProductPage() {
         price: data.price,
         stock: data.isDigital ? 0 : data.stock,
         isDigital: data.isDigital,
-        image: imagePath, // null means keep existing image (handled by API)
+        image: finalImages.length > 0 ? finalImages[0] : null,
+        images: finalImages,
       };
 
       const response = await fetch(`/api/admin/products/${params.id}`, {
@@ -217,9 +302,7 @@ export default function EditProductPage() {
     }
   };
 
-  const { ref: imageRegisterRef, ...imageRegisterRest } = register("image");
-
-  const hasImageForTransform = !!imagePreview || !!currentImage;
+  const hasImages = carouselItems.length > 0;
 
   if (isLoading) {
     return (
@@ -355,64 +438,93 @@ export default function EditProductPage() {
               </div>
             )}
 
-            {/* Imagen */}
+            {/* Imágenes (múltiples) */}
             <div>
-              <label
-                htmlFor="image"
-                className="block text-sm font-medium text-gray-700 mb-2"
-              >
-                Imagen
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Imágenes del producto
               </label>
-
-              {/* Current image preview */}
-              {currentImage && !imagePreview && (
-                <div className="mb-3">
-                  <p className="text-sm text-gray-600 mb-2">Imagen actual:</p>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={currentImage}
-                    alt="Current product"
-                    className="max-w-xs rounded-md border border-gray-300"
-                  />
-                </div>
-              )}
-
+              <p className="text-xs text-gray-500 mb-2">
+                Puedes seleccionar varias imágenes. La primera será la imagen principal.
+              </p>
               <input
-                id="image"
                 type="file"
                 accept="image/*"
-                {...imageRegisterRest}
-                ref={(e) => {
-                  imageRegisterRef(e);
-                  imageInputRef.current = e;
-                }}
-                onChange={(e) => {
-                  imageRegisterRest.onChange(e);
-                  onImageChange(e);
-                }}
+                multiple
+                ref={imageInputRef}
+                onChange={onImagesChange}
                 className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
-              {imagePreview && (
-                <div className="mt-4">
-                  <p className="text-sm text-gray-600 mb-2">Nueva imagen:</p>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={imagePreview}
-                    alt="Preview"
-                    className="max-w-xs rounded-md border border-gray-300"
-                  />
+
+              {/* Image grid */}
+              {carouselItems.length > 0 && (
+                <div className="mt-4 space-y-3">
+                  <p className="text-sm text-gray-600">
+                    {carouselItems.length} imagen{carouselItems.length > 1 ? "es" : ""}:
+                  </p>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    {carouselItems.map((item, index) => (
+                      <div
+                        key={`${item.type}-${item.type === "existing" ? item.url : item.localIndex}-${index}`}
+                        className="relative group border border-gray-200 rounded-md overflow-hidden"
+                      >
+                        {/* Primary badge */}
+                        {index === 0 && (
+                          <span className="absolute top-1 left-1 z-10 bg-blue-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">
+                            Principal
+                          </span>
+                        )}
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={getPreviewUrl(item)}
+                          alt={`Imagen ${index + 1}`}
+                          className="w-full h-28 object-cover"
+                        />
+                        {/* Controls overlay */}
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1.5">
+                          {index > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => moveImage(index, "up")}
+                              className="bg-white/90 rounded-full w-7 h-7 flex items-center justify-center text-gray-700 hover:bg-white text-sm"
+                              title="Mover antes"
+                            >
+                              ←
+                            </button>
+                          )}
+                          {index < carouselItems.length - 1 && (
+                            <button
+                              type="button"
+                              onClick={() => moveImage(index, "down")}
+                              className="bg-white/90 rounded-full w-7 h-7 flex items-center justify-center text-gray-700 hover:bg-white text-sm"
+                              title="Mover después"
+                            >
+                              →
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => removeImage(index)}
+                            className="bg-red-500/90 rounded-full w-7 h-7 flex items-center justify-center text-white hover:bg-red-600 text-sm"
+                            title="Eliminar"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
 
             {/* AI Transform Section */}
-            {hasImageForTransform && (
+            {hasImages && (
               <div className="border border-purple-200 bg-purple-50 rounded-lg p-5 space-y-4">
                 <h3 className="text-lg font-semibold text-purple-900">
                   Transformar con IA
                 </h3>
                 <p className="text-sm text-purple-700">
-                  Mejora la imagen del producto usando inteligencia artificial. Selecciona un preset o escribe tu propio prompt.
+                  Mejora la imagen principal del producto usando inteligencia artificial. Selecciona un preset o escribe tu propio prompt.
                 </p>
 
                 {/* Preset buttons */}
@@ -453,33 +565,15 @@ export default function EditProductPage() {
                   className="w-full px-4 py-2 border border-purple-300 rounded-md focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
                 />
 
-                {/* Transform buttons */}
-                <div className="flex gap-2">
-                  {imagePreview && (
-                    <button
-                      type="button"
-                      onClick={() => handleTransform("upload")}
-                      disabled={isTransforming || !aiPrompt.trim()}
-                      className="flex-1 bg-purple-600 text-white py-2.5 px-4 rounded-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed font-medium transition-colors"
-                    >
-                      {isTransforming && transformSource === "upload"
-                        ? "Transformando..."
-                        : "Transformar nueva imagen"}
-                    </button>
-                  )}
-                  {currentImage && !imagePreview && (
-                    <button
-                      type="button"
-                      onClick={() => handleTransform("current")}
-                      disabled={isTransforming || !aiPrompt.trim()}
-                      className="flex-1 bg-purple-600 text-white py-2.5 px-4 rounded-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed font-medium transition-colors"
-                    >
-                      {isTransforming && transformSource === "current"
-                        ? "Transformando..."
-                        : "Transformar imagen actual"}
-                    </button>
-                  )}
-                </div>
+                {/* Transform button */}
+                <button
+                  type="button"
+                  onClick={handleTransform}
+                  disabled={isTransforming || !aiPrompt.trim()}
+                  className="w-full bg-purple-600 text-white py-2.5 px-4 rounded-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed font-medium transition-colors"
+                >
+                  {isTransforming ? "Transformando con IA..." : "Transformar imagen principal con IA"}
+                </button>
 
                 {/* Transform error */}
                 {transformError && (
@@ -499,7 +593,7 @@ export default function EditProductPage() {
                       className="max-w-xs rounded-md border border-purple-300"
                     />
                     <p className="text-xs text-purple-600">
-                      Esta imagen se usará al guardar el producto.
+                      Esta imagen reemplazará la imagen principal al guardar el producto.
                     </p>
                     <button
                       type="button"
@@ -524,7 +618,7 @@ export default function EditProductPage() {
                 className="flex-1 bg-blue-600 text-white py-3 px-6 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
               >
                 {isUploadingImage
-                  ? "Subiendo imagen..."
+                  ? "Subiendo imágenes..."
                   : isSubmitting
                   ? "Guardando cambios..."
                   : "Guardar Cambios"}

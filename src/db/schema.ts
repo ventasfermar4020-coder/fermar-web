@@ -30,7 +30,7 @@ export const products = pgTable("ec_products", {
   price: numeric("price", { precision: 10, scale: 2 }).notNull(),
   stripePriceId: text("stripePriceId"), // Stripe Price ID (e.g., price_1ABC...)
   imageId: text("imageId"),
-  image: text("image"),
+  image: text("image"), // Legacy single image field (kept for backward compat)
   stock: integer("stock").notNull().default(0),
   isActive: boolean("isActive").notNull().default(true),
   // Digital product fields (for WordPress plugins)
@@ -40,6 +40,22 @@ export const products = pgTable("ec_products", {
   createdAt: timestamp("createdAt", { mode: "date" }).notNull().defaultNow(),
   updatedAt: timestamp("updatedAt", { mode: "date" }).notNull().defaultNow(),
 });
+
+export const productImages = pgTable(
+  "ec_product_images",
+  {
+    id: serial("id").primaryKey(),
+    productId: integer("productId")
+      .notNull()
+      .references(() => products.id, { onDelete: "cascade" }),
+    url: text("url").notNull(),
+    sortOrder: integer("sortOrder").notNull().default(0),
+    createdAt: timestamp("createdAt", { mode: "date" }).notNull().defaultNow(),
+  },
+  (table) => ({
+    productIdIdx: index("product_images_product_id_idx").on(table.productId),
+  })
+);
 
 export const orders = pgTable(
   "ec_orders",
@@ -97,6 +113,17 @@ export const orderItems = pgTable(
 // RELATIONSHIPS
 // ============================================================================
 
+export const productRelations = relations(products, ({ many }) => ({
+  images: many(productImages),
+}));
+
+export const productImageRelations = relations(productImages, ({ one }) => ({
+  product: one(products, {
+    fields: [productImages.productId],
+    references: [products.id],
+  }),
+}));
+
 export const orderRelations = relations(orders, ({ many }) => ({
   items: many(orderItems),
 }));
@@ -118,6 +145,9 @@ export const orderItemRelations = relations(orderItems, ({ one }) => ({
 
 export type Product = typeof products.$inferSelect;
 export type NewProduct = typeof products.$inferInsert;
+
+export type ProductImage = typeof productImages.$inferSelect;
+export type NewProductImage = typeof productImages.$inferInsert;
 
 export type Order = typeof orders.$inferSelect;
 export type NewOrder = typeof orders.$inferInsert;

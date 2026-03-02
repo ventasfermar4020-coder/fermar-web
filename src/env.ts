@@ -1,19 +1,24 @@
 import { z } from "zod";
 
+// Treats empty strings as undefined so that env vars like `DO_SPACES_KEY=` don't fail validation
+const optionalString = z.string().min(1).optional().or(z.literal("").transform(() => undefined));
+const optionalUrl = z.string().url().optional().or(z.literal("").transform(() => undefined));
+const optionalEmail = z.string().email().optional().or(z.literal("").transform(() => undefined));
+
 const envSchema = z.object({
   DATABASE_URL: z.string().url(),
   NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
-  RESEND_API_KEY: z.string().min(1).optional(),
-  OWNER_EMAIL: z.string().email().optional(),
-  ADMIN_USERNAME: z.string().min(1).optional(),
-  ADMIN_PASSWORD: z.string().min(1).optional(),
-  GEMINI_API_KEY: z.string().min(1).optional(),
-  DO_SPACES_REGION: z.string().min(1).optional(),
-  DO_SPACES_BUCKET: z.string().min(1).optional(),
-  DO_SPACES_KEY: z.string().min(1).optional(),
-  DO_SPACES_SECRET: z.string().min(1).optional(),
-  DO_SPACES_ENDPOINT: z.string().url().optional(),
-  DO_SPACES_CDN_BASE_URL: z.string().url().optional(),
+  RESEND_API_KEY: optionalString,
+  OWNER_EMAIL: optionalEmail,
+  ADMIN_USERNAME: optionalString,
+  ADMIN_PASSWORD: optionalString,
+  GEMINI_API_KEY: optionalString,
+  DO_SPACES_REGION: optionalString,
+  DO_SPACES_BUCKET: optionalString,
+  DO_SPACES_KEY: optionalString,
+  DO_SPACES_SECRET: optionalString,
+  DO_SPACES_ENDPOINT: optionalUrl,
+  DO_SPACES_CDN_BASE_URL: optionalUrl,
 });
 
 export const env = envSchema.parse({

@@ -10,7 +10,6 @@ type ProductFormData = {
   price: number;
   stock: number;
   isDigital: boolean;
-  image: FileList;
 };
 
 const PRESET_PROMPTS = [
@@ -34,6 +33,11 @@ const PRESET_PROMPTS = [
 const DEFAULT_PROMPT =
   "Edita esta foto de producto para e-commerce. Mantén intacto el producto principal (misma forma, proporciones, textura, color base, logotipo y detalles de marca). Solo mejora elementos secundarios: iluminación, sombras suaves, fondo limpio/neutral, reflejos controlados y nitidez general. No cambies el diseño del producto, no agregues ni quites partes, no cambies el encuadre principal. Entrega una imagen realista y comercial lista para catálogo.";
 
+type ImageFile = {
+  file: File;
+  preview: string;
+};
+
 export default function NewProductPage() {
   const router = useRouter();
   const {
@@ -46,7 +50,10 @@ export default function NewProductPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
+
+  // Multiple images state
+  const [selectedImages, setSelectedImages] = useState<ImageFile[]>([]);
+  const imageInputRef = useRef<HTMLInputElement | null>(null);
 
   // AI Transform state
   const [aiPrompt, setAiPrompt] = useState(DEFAULT_PROMPT);
@@ -54,30 +61,57 @@ export default function NewProductPage() {
   const [transformedPreview, setTransformedPreview] = useState<string | null>(null);
   const [transformedPath, setTransformedPath] = useState<string | null>(null);
   const [transformError, setTransformError] = useState<string | null>(null);
-  const imageInputRef = useRef<HTMLInputElement | null>(null);
 
   const isDigital = watch("isDigital");
 
-  const onImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-      // Reset transform when new image is selected
-      setTransformedPreview(null);
-      setTransformedPath(null);
-      setTransformError(null);
+  const onImagesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+
+    const newImages: ImageFile[] = [];
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      newImages.push({
+        file,
+        preview: URL.createObjectURL(file),
+      });
+    }
+
+    setSelectedImages((prev) => [...prev, ...newImages]);
+
+    // Reset transform when images change
+    setTransformedPreview(null);
+    setTransformedPath(null);
+    setTransformError(null);
+
+    // Reset the input so the same file can be re-selected
+    if (imageInputRef.current) {
+      imageInputRef.current.value = "";
     }
   };
 
+  const removeImage = (index: number) => {
+    setSelectedImages((prev) => {
+      const updated = [...prev];
+      // Revoke the object URL to free memory
+      URL.revokeObjectURL(updated[index].preview);
+      updated.splice(index, 1);
+      return updated;
+    });
+  };
+
+  const moveImage = (index: number, direction: "up" | "down") => {
+    setSelectedImages((prev) => {
+      const updated = [...prev];
+      const targetIndex = direction === "up" ? index - 1 : index + 1;
+      if (targetIndex < 0 || targetIndex >= updated.length) return prev;
+      [updated[index], updated[targetIndex]] = [updated[targetIndex], updated[index]];
+      return updated;
+    });
+  };
+
   const handleTransform = async () => {
-    // Get the file from the input
-    const input = imageInputRef.current;
-    const file = input?.files?.[0];
-    if (!file) {
+    if (selectedImages.length === 0) {
       setTransformError("Primero selecciona una imagen para transformar");
       return;
     }
@@ -87,7 +121,7 @@ export default function NewProductPage() {
 
     try {
       const formData = new FormData();
-      formData.append("image", file);
+      formData.append("image", selectedImages[0].file);
       formData.append("prompt", aiPrompt);
 
       const response = await fetch("/api/admin/transform-image", {
@@ -118,33 +152,46 @@ export default function NewProductPage() {
     setError(null);
 
     try {
-      let imagePath = transformedPath; // Use transformed image if available
+      const uploadedPaths: string[] = [];
 
-      // Upload original image if no transform was applied
-      if (!imagePath && data.image && data.image.length > 0) {
+      // If a transformed image exists, use it as the first image
+      if (transformedPath) {
+        uploadedPaths.push(transformedPath);
+      }
+
+      // Upload all selected images
+      if (selectedImages.length > 0) {
         setIsUploadingImage(true);
-        const formData = new FormData();
-        formData.append("image", data.image[0]);
 
-        const uploadResponse = await fetch("/api/admin/upload-image", {
-          method: "POST",
-          body: formData,
-        });
+        // If we have a transformed image, skip uploading the first image
+        // (it was already transformed and uploaded)
+        const startIndex = transformedPath ? 1 : 0;
 
-        const uploadResult = await uploadResponse.json();
+        for (let i = startIndex; i < selectedImages.length; i++) {
+          const formData = new FormData();
+          formData.append("image", selectedImages[i].file);
 
-        if (!uploadResponse.ok) {
-          const errorMsg = uploadResult.details
-            ? `${uploadResult.error}: ${uploadResult.details}`
-            : uploadResult.error || "Error al subir la imagen";
-          throw new Error(errorMsg);
+          const uploadResponse = await fetch("/api/admin/upload-image", {
+            method: "POST",
+            body: formData,
+          });
+
+          const uploadResult = await uploadResponse.json();
+
+          if (!uploadResponse.ok) {
+            const errorMsg = uploadResult.details
+              ? `${uploadResult.error}: ${uploadResult.details}`
+              : uploadResult.error || "Error al subir la imagen";
+            throw new Error(errorMsg);
+          }
+
+          if (!uploadResult.path) {
+            throw new Error("Error: La imagen se subió pero no se recibió la ruta");
+          }
+
+          uploadedPaths.push(uploadResult.path);
         }
 
-        if (!uploadResult.path) {
-          throw new Error("Error: La imagen se subió pero no se recibió la ruta");
-        }
-
-        imagePath = uploadResult.path;
         setIsUploadingImage(false);
       }
 
@@ -155,7 +202,8 @@ export default function NewProductPage() {
         price: data.price,
         stock: data.isDigital ? 0 : data.stock,
         isDigital: data.isDigital,
-        image: imagePath,
+        image: uploadedPaths.length > 0 ? uploadedPaths[0] : null,
+        images: uploadedPaths,
       };
 
       const response = await fetch("/api/admin/products", {
@@ -181,8 +229,6 @@ export default function NewProductPage() {
       setIsSubmitting(false);
     }
   };
-
-  const { ref: imageRegisterRef, ...imageRegisterRest } = register("image");
 
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4">
@@ -306,50 +352,93 @@ export default function NewProductPage() {
               </div>
             )}
 
-            {/* Imagen */}
+            {/* Imágenes (múltiples) */}
             <div>
-              <label
-                htmlFor="image"
-                className="block text-sm font-medium text-gray-700 mb-2"
-              >
-                Imagen
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Imágenes del producto
               </label>
+              <p className="text-xs text-gray-500 mb-2">
+                Puedes seleccionar varias imágenes. La primera será la imagen principal. Arrastra para reordenar.
+              </p>
               <input
-                id="image"
                 type="file"
                 accept="image/*"
-                {...imageRegisterRest}
-                ref={(e) => {
-                  imageRegisterRef(e);
-                  imageInputRef.current = e;
-                }}
-                onChange={(e) => {
-                  imageRegisterRest.onChange(e);
-                  onImageChange(e);
-                }}
+                multiple
+                ref={imageInputRef}
+                onChange={onImagesChange}
                 className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
-              {imagePreview && (
-                <div className="mt-4">
-                  <p className="text-sm text-gray-600 mb-2">Vista previa:</p>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={imagePreview}
-                    alt="Preview"
-                    className="max-w-xs rounded-md border border-gray-300"
-                  />
+
+              {/* Image previews */}
+              {selectedImages.length > 0 && (
+                <div className="mt-4 space-y-3">
+                  <p className="text-sm text-gray-600">
+                    {selectedImages.length} imagen{selectedImages.length > 1 ? "es" : ""} seleccionada{selectedImages.length > 1 ? "s" : ""}:
+                  </p>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    {selectedImages.map((img, index) => (
+                      <div
+                        key={index}
+                        className="relative group border border-gray-200 rounded-md overflow-hidden"
+                      >
+                        {/* Primary badge */}
+                        {index === 0 && (
+                          <span className="absolute top-1 left-1 z-10 bg-blue-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">
+                            Principal
+                          </span>
+                        )}
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={img.preview}
+                          alt={`Imagen ${index + 1}`}
+                          className="w-full h-28 object-cover"
+                        />
+                        {/* Controls overlay */}
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1.5">
+                          {index > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => moveImage(index, "up")}
+                              className="bg-white/90 rounded-full w-7 h-7 flex items-center justify-center text-gray-700 hover:bg-white text-sm"
+                              title="Mover antes"
+                            >
+                              ←
+                            </button>
+                          )}
+                          {index < selectedImages.length - 1 && (
+                            <button
+                              type="button"
+                              onClick={() => moveImage(index, "down")}
+                              className="bg-white/90 rounded-full w-7 h-7 flex items-center justify-center text-gray-700 hover:bg-white text-sm"
+                              title="Mover después"
+                            >
+                              →
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => removeImage(index)}
+                            className="bg-red-500/90 rounded-full w-7 h-7 flex items-center justify-center text-white hover:bg-red-600 text-sm"
+                            title="Eliminar"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
 
             {/* AI Transform Section */}
-            {imagePreview && (
+            {selectedImages.length > 0 && (
               <div className="border border-purple-200 bg-purple-50 rounded-lg p-5 space-y-4">
                 <h3 className="text-lg font-semibold text-purple-900">
                   Transformar con IA
                 </h3>
                 <p className="text-sm text-purple-700">
-                  Mejora la imagen del producto usando inteligencia artificial. Selecciona un preset o escribe tu propio prompt.
+                  Mejora la imagen principal del producto usando inteligencia artificial. Selecciona un preset o escribe tu propio prompt.
                 </p>
 
                 {/* Preset buttons */}
@@ -397,7 +486,7 @@ export default function NewProductPage() {
                   disabled={isTransforming || !aiPrompt.trim()}
                   className="w-full bg-purple-600 text-white py-2.5 px-4 rounded-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed font-medium transition-colors"
                 >
-                  {isTransforming ? "Transformando con IA..." : "Transformar con IA"}
+                  {isTransforming ? "Transformando con IA..." : "Transformar imagen principal con IA"}
                 </button>
 
                 {/* Transform error */}
@@ -418,7 +507,7 @@ export default function NewProductPage() {
                       className="max-w-xs rounded-md border border-purple-300"
                     />
                     <p className="text-xs text-purple-600">
-                      Esta imagen se usará al guardar el producto.
+                      Esta imagen reemplazará la imagen principal al guardar el producto.
                     </p>
                     <button
                       type="button"
@@ -443,7 +532,7 @@ export default function NewProductPage() {
                 className="flex-1 bg-blue-600 text-white py-3 px-6 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
               >
                 {isUploadingImage
-                  ? "Subiendo imagen..."
+                  ? "Subiendo imágenes..."
                   : isSubmitting
                   ? "Guardando producto..."
                   : "Guardar Producto"}
