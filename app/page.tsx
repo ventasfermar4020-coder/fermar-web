@@ -58,6 +58,12 @@ export default async function Home() {
           >
             CONÓCENOS
           </Link>
+          <Link
+            href="/admin/products"
+            className="text-[#676767] text-sm font-medium tracking-[0.5em] hover:text-[#212B36] transition-colors cursor-pointer"
+          >
+            AGREGAR PRODUCTOS
+          </Link>
         </div>
         {/* Section Title */}
         <div className="mb-6 flex justify-center">
