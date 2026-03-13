@@ -1,8 +1,10 @@
 "use client";
 
 import Image from "next/image";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import CheckoutModal from "./CheckoutModal";
+import CartDrawer from "./CartDrawer";
+import { useCart, type CartItem } from "../context/CartContext";
 import { normalizeImageUrl } from "@/src/lib/image-utils";
 
 type ProductImageData = {
@@ -19,6 +21,7 @@ type Product = {
   images: ProductImageData[];
   stock: number;
   isActive: boolean;
+  isDigital?: boolean;
 };
 
 /* ──────────────────────────────────────────────
@@ -166,15 +169,56 @@ function ProductImageCarousel({
 }
 
 /* ──────────────────────────────────────────────
+   "Added to Cart" toast notification
+   ────────────────────────────────────────────── */
+function AddedToast({ visible }: { visible: boolean }) {
+  return (
+    <div
+      className={`absolute top-3 left-1/2 -translate-x-1/2 bg-green-600 text-white text-sm font-semibold px-4 py-2 rounded-full shadow-lg z-10 transition-all duration-300 ${
+        visible
+          ? "opacity-100 translate-y-0"
+          : "opacity-0 -translate-y-2 pointer-events-none"
+      }`}
+    >
+      ✓ Agregado al carrito
+    </div>
+  );
+}
+
+/* ──────────────────────────────────────────────
    Product Grid
    ────────────────────────────────────────────── */
 export default function ProductGrid({ products }: { products: Product[] }) {
-  const [selectedProduct, setSelectedProduct] = useState<{
-    id: number;
-    name: string;
-    price: string;
-    image: string;
-  } | null>(null);
+  const { addToCart, isInCart, items, setIsCartOpen } = useCart();
+  const [showCheckout, setShowCheckout] = useState(false);
+  const [addedProductId, setAddedProductId] = useState<number | null>(null);
+
+  // Listen for "open-checkout" custom event from CartDrawer
+  useEffect(() => {
+    const handler = () => setShowCheckout(true);
+    window.addEventListener("open-checkout", handler);
+    return () => window.removeEventListener("open-checkout", handler);
+  }, []);
+
+  const handleAddToCart = (product: Product) => {
+    const primaryImage =
+      product.images && product.images.length > 0
+        ? product.images[0].url
+        : product.image || "";
+
+    addToCart({
+      id: product.id,
+      name: product.name,
+      price: product.price,
+      image: primaryImage,
+      stock: product.stock,
+      isDigital: product.isDigital,
+    });
+
+    // Show toast
+    setAddedProductId(product.id);
+    setTimeout(() => setAddedProductId(null), 1500);
+  };
 
   const bgColors = ["#ECE5D8", "#F4ECDD", "#F9F1E3", "#FFFCF8"];
 
@@ -186,6 +230,7 @@ export default function ProductGrid({ products }: { products: Product[] }) {
           const priceNumber = parseFloat(product.price);
           const formattedPrice = `$${priceNumber.toFixed(2)}`;
           const bgColor = bgColors[index % bgColors.length];
+          const inCart = isInCart(product.id);
 
           // Build the list of carousel images:
           // Prefer the new `images` array; fall back to the legacy `image` field
@@ -199,8 +244,18 @@ export default function ProductGrid({ products }: { products: Product[] }) {
           return (
             <div
               key={product.id}
-              className="bg-white rounded-[3px] shadow-[0_54px_80px_-16px_rgba(219,222,229,0.8)] overflow-hidden"
+              className="bg-white rounded-[3px] shadow-[0_54px_80px_-16px_rgba(219,222,229,0.8)] overflow-hidden relative"
             >
+              {/* "Added" toast */}
+              <AddedToast visible={addedProductId === product.id} />
+
+              {/* "In Cart" badge */}
+              {inCart && (
+                <div className="absolute top-3 right-3 bg-[#EC2A2A] text-white text-xs font-bold px-2 py-1 rounded-full z-10">
+                  En tu carrito
+                </div>
+              )}
+
               {/* Product Image Carousel */}
               <ProductImageCarousel
                 images={carouselImages}
@@ -239,20 +294,21 @@ export default function ProductGrid({ products }: { products: Product[] }) {
                   )}
                 </div>
 
-                {/* Buy Button */}
+                {/* Add to Cart Button */}
                 <button
-                  onClick={() =>
-                    setSelectedProduct({
-                      id: product.id,
-                      name: product.name,
-                      price: product.price,
-                      image: product.image || "",
-                    })
-                  }
-                  className="w-full mt-4 bg-[#EC2A2A] hover:bg-[#D32424] text-white font-semibold text-lg py-3 px-6 rounded-[3px] transition-colors duration-200"
+                  onClick={() => handleAddToCart(product)}
+                  className={`w-full mt-4 font-semibold text-lg py-3 px-6 rounded-[3px] transition-colors duration-200 ${
+                    inCart
+                      ? "bg-[#212B36] hover:bg-[#1a2230] text-white"
+                      : "bg-[#EC2A2A] hover:bg-[#D32424] text-white"
+                  }`}
                   disabled={product.stock === 0 || !product.isActive}
                 >
-                  {product.stock === 0 ? "Agotado" : "Comprar"}
+                  {product.stock === 0
+                    ? "Agotado"
+                    : inCart
+                      ? "Agregar otro"
+                      : "Agregar al carrito"}
                 </button>
               </div>
             </div>
@@ -260,12 +316,15 @@ export default function ProductGrid({ products }: { products: Product[] }) {
         })}
       </div>
 
-      {/* Checkout Modal */}
-      {selectedProduct && (
+      {/* Cart Drawer */}
+      <CartDrawer />
+
+      {/* Checkout Modal — now receives cart items */}
+      {showCheckout && items.length > 0 && (
         <CheckoutModal
-          isOpen={!!selectedProduct}
-          onClose={() => setSelectedProduct(null)}
-          product={selectedProduct}
+          isOpen={showCheckout}
+          onClose={() => setShowCheckout(false)}
+          cartItems={items}
         />
       )}
     </>

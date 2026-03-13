@@ -3,6 +3,15 @@ import { useEffect, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 
+interface OrderProduct {
+  id: number;
+  name: string;
+  isDigital: boolean;
+  downloadUrl: string | null;
+  activationCode: string | null;
+  quantity: number;
+}
+
 function SuccessPageContent() {
   const searchParams = useSearchParams();
   const paymentIntent = searchParams.get("payment_intent");
@@ -11,6 +20,9 @@ function SuccessPageContent() {
     success: boolean;
     orderId?: number;
     error?: string;
+    // New multi-item format
+    products?: OrderProduct[];
+    // Legacy single-item format
     product?: {
       id: number;
       name: string;
@@ -19,7 +31,7 @@ function SuccessPageContent() {
       activationCode: string | null;
     } | null;
   } | null>(null);
-  const [copied, setCopied] = useState(false);
+  const [copiedMap, setCopiedMap] = useState<Record<number, boolean>>({});
 
   useEffect(() => {
     if (paymentIntent) {
@@ -45,6 +57,26 @@ function SuccessPageContent() {
         });
     }
   }, [paymentIntent]);
+
+  // Get the list of products (support both new and legacy format)
+  const orderProducts: OrderProduct[] = (() => {
+    if (verificationStatus?.products) {
+      return verificationStatus.products;
+    }
+    // Legacy single-product format
+    if (verificationStatus?.product) {
+      return [{ ...verificationStatus.product, quantity: 1 }];
+    }
+    return [];
+  })();
+
+  const digitalProducts = orderProducts.filter((p) => p.isDigital);
+
+  const handleCopy = (productId: number, code: string) => {
+    navigator.clipboard.writeText(code);
+    setCopiedMap((prev) => ({ ...prev, [productId]: true }));
+    setTimeout(() => setCopiedMap((prev) => ({ ...prev, [productId]: false })), 2000);
+  };
 
   if (loading) {
     return (
@@ -134,35 +166,51 @@ function SuccessPageContent() {
             </div>
           )}
 
+          {/* Ordered Items Summary */}
+          {orderProducts.length > 1 && (
+            <div className="bg-gray-50 rounded-lg p-4 mb-4 border border-gray-200 text-left">
+              <h3 className="text-sm font-semibold text-[#212B36] mb-2">
+                Artículos ordenados:
+              </h3>
+              <ul className="space-y-1">
+                {orderProducts.map((p) => (
+                  <li key={p.id} className="text-sm text-[#637381] flex justify-between">
+                    <span>{p.name}</span>
+                    <span className="text-[#212B36]">× {p.quantity}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           {/* Digital Product Download Section */}
-          {verificationStatus?.product?.isDigital && (
-            <div className="bg-blue-50 rounded-lg p-6 mb-6 border border-blue-200">
+          {digitalProducts.map((product) => (
+            <div
+              key={product.id}
+              className="bg-blue-50 rounded-lg p-6 mb-4 border border-blue-200"
+            >
               <h2 className="text-lg font-bold text-[#212B36] mb-4">
-                📦 Descarga tu Plugin de WordPress
+                📦 Descarga: {product.name}
               </h2>
 
               {/* Activation Code */}
-              {verificationStatus.product.activationCode && (
+              {product.activationCode && (
                 <div className="mb-4">
                   <p className="text-sm text-[#637381] mb-2 font-semibold">
                     Código de Activación (Contraseña del RAR):
                   </p>
                   <div className="bg-white rounded-lg p-4 border-2 border-blue-300 flex items-center justify-between">
                     <code className="text-xl font-bold text-[#212B36] tracking-wider break-all">
-                      {verificationStatus.product.activationCode}
+                      {product.activationCode}
                     </code>
                     <button
-                      onClick={() => {
-                        navigator.clipboard.writeText(
-                          verificationStatus.product?.activationCode || ""
-                        );
-                        setCopied(true);
-                        setTimeout(() => setCopied(false), 2000);
-                      }}
+                      onClick={() =>
+                        handleCopy(product.id, product.activationCode!)
+                      }
                       className="ml-4 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded transition-colors"
                       title="Copiar código"
                     >
-                      {copied ? "✓ Copiado" : "Copiar"}
+                      {copiedMap[product.id] ? "✓ Copiado" : "Copiar"}
                     </button>
                   </div>
                   <p className="text-xs text-[#637381] mt-2">
@@ -173,22 +221,21 @@ function SuccessPageContent() {
               )}
 
               {/* Download Button */}
-              {verificationStatus.product.downloadUrl && (
+              {product.downloadUrl && (
                 <a
-                  href={`/api/download?productId=${verificationStatus.product.id}&orderId=${verificationStatus.orderId}`}
+                  href={`/api/download?productId=${product.id}&orderId=${verificationStatus?.orderId}`}
                   className="inline-block w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold text-lg py-3 px-6 rounded-[3px] transition-colors duration-200 text-center mb-3"
                   download
                 >
-                  ⬇️ Descargar Plugin
+                  ⬇️ Descargar
                 </a>
               )}
 
               <p className="text-xs text-[#637381] text-center">
-                Guarda esta página para referencia futura o revisa tu correo
-                electrónico para los detalles de tu compra
+                Guarda esta página para referencia futura
               </p>
             </div>
-          )}
+          ))}
 
           <div className="bg-gray-50 rounded-lg p-4 mb-6">
             <p className="text-sm text-[#637381] mb-1">ID de Transacción:</p>

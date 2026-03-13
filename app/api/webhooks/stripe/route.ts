@@ -14,6 +14,44 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!;
 
+interface MetadataItem {
+  productId: number;
+  quantity: number;
+  name: string;
+  price: string;
+}
+
+/**
+ * Parse items from Stripe metadata.
+ * Supports both the new multi-item format (metadata.items JSON array)
+ * and the legacy single-item format (metadata.productId).
+ */
+function parseItemsFromMetadata(metadata: Stripe.Metadata): MetadataItem[] | null {
+  // New multi-item format
+  if (metadata.items) {
+    try {
+      return JSON.parse(metadata.items);
+    } catch {
+      console.error("❌ Failed to parse items metadata:", metadata.items);
+      return null;
+    }
+  }
+
+  // Legacy single-item format (backward compat)
+  if (metadata.productId) {
+    return [
+      {
+        productId: parseInt(metadata.productId),
+        quantity: 1,
+        name: metadata.productName || "Unknown",
+        price: "0",
+      },
+    ];
+  }
+
+  return null;
+}
+
 export async function POST(req: NextRequest) {
   console.log("🎯 Webhook received!");
 
@@ -54,7 +92,7 @@ export async function POST(req: NextRequest) {
       console.log("📋 Payment Intent ID:", paymentIntent.id);
 
       // Check if this is a real payment with metadata (not a test trigger)
-      if (!metadata || !metadata.productId || !metadata.email) {
+      if (!metadata || (!metadata.items && !metadata.productId) || !metadata.email) {
         console.log("⚠️ Skipping event - no product metadata (likely a test trigger)");
         return NextResponse.json({ received: true, skipped: true });
       }
@@ -71,20 +109,19 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ received: true, alreadyProcessed: true });
       }
 
-      const productId = parseInt(metadata.productId);
-
-      // Validate productId is a valid number
-      if (isNaN(productId)) {
-        console.error("❌ Invalid productId:", metadata.productId);
+      // Parse items from metadata
+      const parsedItems = parseItemsFromMetadata(metadata);
+      if (!parsedItems || parsedItems.length === 0) {
+        console.error("❌ No valid items in metadata");
         return NextResponse.json(
-          { error: "Invalid product ID" },
+          { error: "Invalid items metadata" },
           { status: 400 }
         );
       }
 
       const shippingAddress = JSON.parse(metadata.shippingAddress || "{}");
 
-      console.log(`📦 Processing order for product ${productId}`);
+      console.log(`📦 Processing order for ${parsedItems.length} item(s)`);
 
       // Use a transaction to ensure stock is decremented and order is created atomically
       await database.transaction(async (tx) => {
@@ -100,26 +137,27 @@ export async function POST(req: NextRequest) {
           return; // Exit early, don't decrement stock or create order
         }
 
-        // Get product details to check if it's digital
-        const [product] = await tx
-          .select()
-          .from(products)
-          .where(eq(products.id, productId))
-          .limit(1);
+        // Decrement stock for each physical product
+        for (const item of parsedItems) {
+          const [product] = await tx
+            .select()
+            .from(products)
+            .where(eq(products.id, item.productId))
+            .limit(1);
 
-        // Only decrement stock for physical products (not digital)
-        if (product && !product.isDigital) {
-          await tx
-            .update(products)
-            .set({
-              stock: sql`${products.stock} - 1`,
-              updatedAt: new Date(),
-            })
-            .where(eq(products.id, productId));
+          if (product && !product.isDigital) {
+            await tx
+              .update(products)
+              .set({
+                stock: sql`${products.stock} - ${item.quantity}`,
+                updatedAt: new Date(),
+              })
+              .where(eq(products.id, item.productId));
 
-          console.log(`✅ Stock decremented for physical product: ${productId}`);
-        } else if (product?.isDigital) {
-          console.log(`ℹ️ Digital product - stock not decremented: ${productId}`);
+            console.log(`✅ Stock decremented for physical product: ${item.productId} (qty: ${item.quantity})`);
+          } else if (product?.isDigital) {
+            console.log(`ℹ️ Digital product - stock not decremented: ${item.productId}`);
+          }
         }
 
         // Create order in database
@@ -140,16 +178,18 @@ export async function POST(req: NextRequest) {
           })
           .returning();
 
-        // Create order item
-        await tx.insert(orderItems).values({
-          orderId: order.id,
-          productId: productId,
-          quantity: 1, // Assuming 1 item per order for now
-          priceAtPurchase: (paymentIntent.amount / 100).toString(),
-          productNameSnapshot: metadata.productName,
-        });
+        // Create order items for each cart item
+        for (const item of parsedItems) {
+          await tx.insert(orderItems).values({
+            orderId: order.id,
+            productId: item.productId,
+            quantity: item.quantity,
+            priceAtPurchase: item.price,
+            productNameSnapshot: item.name,
+          });
+        }
 
-        console.log(`✅ Order created: ${order.id} for payment ${paymentIntent.id}`);
+        console.log(`✅ Order created: ${order.id} with ${parsedItems.length} items for payment ${paymentIntent.id}`);
 
         // Send emails after successful order creation
         try {

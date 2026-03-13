@@ -1,12 +1,45 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { database } from "@/src/db";
-import { orders, orderItems, products } from "@/src/db/schema";
+import { orders, orderItems, products, type Product } from "@/src/db/schema";
 import { eq, sql } from "drizzle-orm";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2025-09-30.clover",
 });
+
+interface MetadataItem {
+  productId: number;
+  quantity: number;
+  name: string;
+  price: string;
+}
+
+/**
+ * Parse items from Stripe metadata.
+ * Supports both the new multi-item format (metadata.items JSON array)
+ * and the legacy single-item format (metadata.productId).
+ */
+function parseItemsFromMetadata(metadata: Stripe.Metadata): MetadataItem[] | null {
+  if (metadata.items) {
+    try {
+      return JSON.parse(metadata.items);
+    } catch {
+      return null;
+    }
+  }
+  if (metadata.productId) {
+    return [
+      {
+        productId: parseInt(metadata.productId),
+        quantity: 1,
+        name: metadata.productName || "Unknown",
+        price: "0",
+      },
+    ];
+  }
+  return null;
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -45,45 +78,49 @@ export async function POST(req: NextRequest) {
     if (existingOrder.length > 0) {
       console.log("✅ Order already exists:", existingOrder[0].id);
 
-      // Fetch the product details for this order
-      const orderItem = await database
-        .select()
+      // Fetch all order items with product details
+      const existingItems = await database
+        .select({
+          id: orderItems.id,
+          productId: orderItems.productId,
+          quantity: orderItems.quantity,
+        })
         .from(orderItems)
-        .where(eq(orderItems.orderId, existingOrder[0].id))
-        .limit(1);
+        .where(eq(orderItems.orderId, existingOrder[0].id));
 
-      if (orderItem.length > 0) {
+      // Fetch product details for all items
+      const orderProducts = [];
+      for (const item of existingItems) {
         const [product] = await database
           .select()
           .from(products)
-          .where(eq(products.id, orderItem[0].productId))
+          .where(eq(products.id, item.productId))
           .limit(1);
 
-        return NextResponse.json({
-          success: true,
-          orderId: existingOrder[0].id,
-          alreadyProcessed: true,
-          product: product ? {
+        if (product) {
+          orderProducts.push({
             id: product.id,
             name: product.name,
             isDigital: product.isDigital,
             downloadUrl: product.downloadUrl,
             activationCode: product.activationCode,
-          } : null,
-        });
+            quantity: item.quantity,
+          });
+        }
       }
 
       return NextResponse.json({
         success: true,
         orderId: existingOrder[0].id,
         alreadyProcessed: true,
+        products: orderProducts,
       });
     }
 
     // Extract metadata
     const metadata = paymentIntent.metadata;
 
-    if (!metadata || !metadata.productId || !metadata.email) {
+    if (!metadata || (!metadata.items && !metadata.productId) || !metadata.email) {
       console.log("⚠️ Missing metadata - cannot create order");
       return NextResponse.json(
         { error: "Payment missing required metadata" },
@@ -91,31 +128,34 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const productId = parseInt(metadata.productId);
-
-    if (isNaN(productId)) {
+    const parsedItems = parseItemsFromMetadata(metadata);
+    if (!parsedItems || parsedItems.length === 0) {
       return NextResponse.json(
-        { error: "Invalid product ID" },
+        { error: "Invalid items metadata" },
         { status: 400 }
       );
     }
 
     const shippingAddress = JSON.parse(metadata.shippingAddress || "{}");
 
-    console.log(`📦 Creating order for product ${productId}`);
+    console.log(`📦 Creating order for ${parsedItems.length} item(s)`);
 
-    // Fetch product details to check if it's digital
-    const [product] = await database
-      .select()
-      .from(products)
-      .where(eq(products.id, productId))
-      .limit(1);
+    // Fetch all product details
+    const productDetails: (Product & { quantity: number })[] = [];
+    for (const item of parsedItems) {
+      const [product] = await database
+        .select()
+        .from(products)
+        .where(eq(products.id, item.productId))
+        .limit(1);
 
-    if (!product) {
-      return NextResponse.json(
-        { error: "Product not found" },
-        { status: 404 }
-      );
+      if (!product) {
+        return NextResponse.json(
+          { error: `Product not found: ${item.productId}` },
+          { status: 404 }
+        );
+      }
+      productDetails.push({ ...product, quantity: item.quantity });
     }
 
     // Use a transaction to ensure stock is decremented and order is created atomically
@@ -132,15 +172,18 @@ export async function POST(req: NextRequest) {
         return existingOrderInTx[0]; // Return existing order
       }
 
-      // Decrement product stock (only for physical products)
-      if (!product.isDigital) {
-        await tx
-          .update(products)
-          .set({
-            stock: sql`${products.stock} - 1`,
-            updatedAt: new Date(),
-          })
-          .where(eq(products.id, productId));
+      // Decrement product stock for each physical product
+      for (const item of parsedItems) {
+        const product = productDetails.find((p) => p.id === item.productId);
+        if (product && !product.isDigital) {
+          await tx
+            .update(products)
+            .set({
+              stock: sql`${products.stock} - ${item.quantity}`,
+              updatedAt: new Date(),
+            })
+            .where(eq(products.id, item.productId));
+        }
       }
 
       // Create order in database
@@ -161,32 +204,35 @@ export async function POST(req: NextRequest) {
         })
         .returning();
 
-      // Create order item
-      await tx.insert(orderItems).values({
-        orderId: order.id,
-        productId: productId,
-        quantity: 1,
-        priceAtPurchase: (paymentIntent.amount / 100).toString(),
-        productNameSnapshot: metadata.productName,
-      });
+      // Create order items for each cart item
+      for (const item of parsedItems) {
+        await tx.insert(orderItems).values({
+          orderId: order.id,
+          productId: item.productId,
+          quantity: item.quantity,
+          priceAtPurchase: item.price,
+          productNameSnapshot: item.name,
+        });
+      }
 
-      console.log(`✅ Order created: ${order.id}`);
+      console.log(`✅ Order created: ${order.id} with ${parsedItems.length} items`);
 
       return order;
     });
 
-    // Return order details with product information (including activation code for digital products)
+    // Return order details with product information
     return NextResponse.json({
       success: true,
       orderId: result.id,
       alreadyProcessed: false,
-      product: {
-        id: product.id,
-        name: product.name,
-        isDigital: product.isDigital,
-        downloadUrl: product.downloadUrl,
-        activationCode: product.activationCode,
-      },
+      products: productDetails.map((p) => ({
+        id: p.id,
+        name: p.name,
+        isDigital: p.isDigital,
+        downloadUrl: p.downloadUrl,
+        activationCode: p.activationCode,
+        quantity: p.quantity,
+      })),
     });
   } catch (error) {
     console.error("❌ Error verifying payment:", error);
@@ -196,4 +242,3 @@ export async function POST(req: NextRequest) {
     );
   }
 }
-

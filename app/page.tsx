@@ -4,6 +4,7 @@ import { database } from "@/src/db";
 import { products, productImages } from "@/src/db/schema";
 import { eq, asc } from "drizzle-orm";
 import ProductGrid from "./components/ProductGrid";
+import CartIconButton from "./components/CartIconButton";
 
 // Force dynamic rendering - don't prerender at build time
 export const dynamic = "force-dynamic";
@@ -45,6 +46,8 @@ export default async function Home() {
 
   return (
     <div className="min-h-screen bg-white">
+      {/* Floating Cart Icon */}
+      <CartIconButton />
       {/* Our Products Section */}
       <section className="max-w-[1170px] mx-auto px-6 py-12">
         {/* Navigation Labels */}

@@ -9,6 +9,7 @@ import {
   useStripe,
   useElements,
 } from "@stripe/react-stripe-js";
+import { useCart, type CartItem } from "../context/CartContext";
 
 const stripePromise = loadStripe(
   process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!
@@ -28,24 +29,25 @@ interface CheckoutFormData {
 interface CheckoutModalProps {
   isOpen: boolean;
   onClose: () => void;
-  product: {
-    id: number;
-    name: string;
-    price: string;
-    image: string;
-  };
+  cartItems: CartItem[];
 }
 
 function CheckoutForm({
   onClose,
-  product,
+  cartItems,
 }: {
   onClose: () => void;
-  product: CheckoutModalProps["product"];
+  cartItems: CartItem[];
 }) {
   const stripe = useStripe();
   const elements = useElements();
   const [processing, setProcessing] = useState(false);
+  const { clearCart } = useCart();
+
+  const total = cartItems.reduce(
+    (sum, item) => sum + parseFloat(item.price) * item.quantity,
+    0
+  );
 
   const {
     register,
@@ -59,12 +61,15 @@ function CheckoutForm({
     setProcessing(true);
 
     try {
-      // Create payment intent (server fetches price from database)
+      // Create payment intent with all cart items
       const response = await fetch("/api/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          productId: product.id,
+          items: cartItems.map((item) => ({
+            productId: item.productId,
+            quantity: item.quantity,
+          })),
           email: data.email,
           phone: data.phone,
           shippingAddress: {
@@ -78,7 +83,15 @@ function CheckoutForm({
         }),
       });
 
-      const { clientSecret } = await response.json();
+      const result = await response.json();
+
+      if (!response.ok) {
+        alert(`Error: ${result.error}`);
+        setProcessing(false);
+        return;
+      }
+
+      const { clientSecret } = result;
 
       // Confirm payment
       const cardElement = elements.getElement(CardElement);
@@ -107,6 +120,7 @@ function CheckoutForm({
       if (error) {
         alert(`Error: ${error.message}`);
       } else if (paymentIntent?.status === "succeeded") {
+        clearCart();
         window.location.href = `/success?payment_intent=${paymentIntent.id}`;
       }
     } catch (error) {
@@ -247,7 +261,8 @@ function CheckoutForm({
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#EC2A2A] resize-none"
           />
           <p className="text-xs text-gray-500 mt-1">
-            Opcional: Proporciona detalles adicionales para facilitar la entrega (color de la casa, edificios cercanos, etc.)
+            Opcional: Proporciona detalles adicionales para facilitar la entrega
+            (color de la casa, edificios cercanos, etc.)
           </p>
         </div>
 
@@ -290,7 +305,7 @@ function CheckoutForm({
           disabled={processing || !stripe}
           className="flex-1 px-4 py-2 bg-[#EC2A2A] text-white rounded-md hover:bg-[#D32424] disabled:opacity-50"
         >
-          {processing ? "Procesando..." : `Pagar ${product.price}`}
+          {processing ? "Procesando..." : `Pagar $${total.toFixed(2)}`}
         </button>
       </div>
     </form>
@@ -300,9 +315,14 @@ function CheckoutForm({
 export default function CheckoutModal({
   isOpen,
   onClose,
-  product,
+  cartItems,
 }: CheckoutModalProps) {
   if (!isOpen) return null;
+
+  const total = cartItems.reduce(
+    (sum, item) => sum + parseFloat(item.price) * item.quantity,
+    0
+  );
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -329,19 +349,46 @@ export default function CheckoutModal({
           </button>
         </div>
 
+        {/* Order Summary */}
         <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-          <div className="flex items-center gap-4">
-            <div className="text-sm text-[#637381]">
-              <p className="font-semibold text-[#212B36]">{product.name}</p>
-              <p className="text-xl font-bold text-[#EC2A2A] mt-1">
-                {product.price}
-              </p>
-            </div>
+          <h3 className="text-sm font-semibold text-[#212B36] mb-3">
+            Resumen del pedido
+          </h3>
+          <div className="space-y-2">
+            {cartItems.map((item) => {
+              const subtotal = parseFloat(item.price) * item.quantity;
+              return (
+                <div
+                  key={item.productId}
+                  className="flex justify-between items-center text-sm"
+                >
+                  <div className="flex-1">
+                    <span className="text-[#212B36] font-medium">
+                      {item.name}
+                    </span>
+                    {item.quantity > 1 && (
+                      <span className="text-[#637381] ml-1">
+                        × {item.quantity}
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-[#212B36] font-medium">
+                    ${subtotal.toFixed(2)}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+          <div className="border-t border-gray-200 mt-3 pt-3 flex justify-between">
+            <span className="text-base font-bold text-[#212B36]">Total</span>
+            <span className="text-xl font-bold text-[#EC2A2A]">
+              ${total.toFixed(2)}
+            </span>
           </div>
         </div>
 
         <Elements stripe={stripePromise}>
-          <CheckoutForm onClose={onClose} product={product} />
+          <CheckoutForm onClose={onClose} cartItems={cartItems} />
         </Elements>
       </div>
     </div>

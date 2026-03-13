@@ -2,48 +2,86 @@ import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { database } from "@/src/db";
 import { products } from "@/src/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2025-09-30.clover",
 });
 
+interface CartItemInput {
+  productId: number;
+  quantity: number;
+}
+
 export async function POST(req: NextRequest) {
   try {
-    const { productId, email, phone, shippingAddress, referencia } =
+    const { items, email, phone, shippingAddress, referencia } =
       await req.json();
 
-    // Fetch product from database to get the real price
-    const [product] = await database
-      .select()
-      .from(products)
-      .where(eq(products.id, productId))
-      .limit(1);
-
-    if (!product) {
+    // Validate items array
+    if (!items || !Array.isArray(items) || items.length === 0) {
       return NextResponse.json(
-        { error: "Product not found" },
-        { status: 404 }
-      );
-    }
-
-    if (!product.isActive || product.stock <= 0) {
-      return NextResponse.json(
-        { error: "Product not available" },
+        { error: "No items in cart" },
         { status: 400 }
       );
     }
 
-    // Use the price from the database (secure)
-    const amount = parseFloat(product.price);
+    const cartItems: CartItemInput[] = items;
 
-    // Create Payment Intent
+    // Fetch all products from database
+    const productIds = cartItems.map((item) => item.productId);
+    const dbProducts = await database
+      .select()
+      .from(products)
+      .where(inArray(products.id, productIds));
+
+    // Validate all products exist and are available
+    const productMap = new Map(dbProducts.map((p) => [p.id, p]));
+
+    for (const item of cartItems) {
+      const product = productMap.get(item.productId);
+      if (!product) {
+        return NextResponse.json(
+          { error: `Product not found: ${item.productId}` },
+          { status: 404 }
+        );
+      }
+      if (!product.isActive) {
+        return NextResponse.json(
+          { error: `Product not available: ${product.name}` },
+          { status: 400 }
+        );
+      }
+      if (!product.isDigital && product.stock < item.quantity) {
+        return NextResponse.json(
+          {
+            error: `Insufficient stock for ${product.name}. Available: ${product.stock}`,
+          },
+          { status: 400 }
+        );
+      }
+    }
+
+    // Calculate total from database prices (secure)
+    let totalAmount = 0;
+    const itemsMetadata = cartItems.map((item) => {
+      const product = productMap.get(item.productId)!;
+      const itemTotal = parseFloat(product.price) * item.quantity;
+      totalAmount += itemTotal;
+      return {
+        productId: item.productId,
+        quantity: item.quantity,
+        name: product.name,
+        price: product.price,
+      };
+    });
+
+    // Create Payment Intent with items in metadata
     const paymentIntent = await stripe.paymentIntents.create({
-      amount: Math.round(amount * 100), // Convert to cents
+      amount: Math.round(totalAmount * 100), // Convert to cents
       currency: "mxn",
       metadata: {
-        productId: productId.toString(),
-        productName: product.name,
+        items: JSON.stringify(itemsMetadata),
         email,
         phone,
         shippingAddress: JSON.stringify(shippingAddress),
