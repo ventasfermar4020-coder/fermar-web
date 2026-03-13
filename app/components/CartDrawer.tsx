@@ -4,6 +4,8 @@ import Image from "next/image";
 import { useCart } from "../context/CartContext";
 import { normalizeImageUrl } from "@/src/lib/image-utils";
 
+const SHIPPING_COST = 80;
+
 export default function CartDrawer() {
   const {
     items,
@@ -214,21 +216,31 @@ export default function CartDrawer() {
         {/* Footer */}
         {items.length > 0 && (
           <div className="border-t border-gray-200 px-6 py-4 space-y-4">
-            {/* Clear Cart */}
-            <div className="flex justify-between items-center">
-              <button
-                onClick={clearCart}
-                className="text-sm text-[#637381] hover:text-red-500 transition-colors underline"
-              >
-                Vaciar carrito
-              </button>
-              <div className="text-right">
-                <p className="text-sm text-[#637381]">Total</p>
-                <p className="text-2xl font-bold text-[#212B36]">
-                  ${total.toFixed(2)}
-                </p>
+            {/* Price Breakdown */}
+            <div className="space-y-2">
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-[#637381]">Subtotal</span>
+                <span className="text-[#212B36] font-medium">${total.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-[#637381]">Envío</span>
+                <span className="text-[#212B36] font-medium">${SHIPPING_COST.toFixed(2)}</span>
+              </div>
+              <div className="border-t border-gray-100 pt-2 flex justify-between items-center">
+                <span className="text-[#212B36] font-semibold">Total</span>
+                <span className="text-2xl font-bold text-[#212B36]">
+                  ${(total + SHIPPING_COST).toFixed(2)}
+                </span>
               </div>
             </div>
+
+            {/* Clear Cart */}
+            <button
+              onClick={clearCart}
+              className="text-sm text-[#637381] hover:text-red-500 transition-colors underline"
+            >
+              Vaciar carrito
+            </button>
 
             {/* Checkout Button */}
             <button
