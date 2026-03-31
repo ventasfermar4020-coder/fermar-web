@@ -3,6 +3,7 @@ import Stripe from "stripe";
 import { database } from "@/src/db";
 import { products } from "@/src/db/schema";
 import { eq, inArray } from "drizzle-orm";
+import { auth } from "@/src/auth";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2025-09-30.clover",
@@ -15,6 +16,7 @@ interface CartItemInput {
 
 export async function POST(req: NextRequest) {
   try {
+    const session = await auth();
     const { items, email, phone, shippingAddress, referencia } =
       await req.json();
 
@@ -86,6 +88,7 @@ export async function POST(req: NextRequest) {
         phone,
         shippingAddress: JSON.stringify(shippingAddress),
         referencia: referencia || "",
+        userId: session?.user?.id || "",
       },
       receipt_email: email,
       shipping: {

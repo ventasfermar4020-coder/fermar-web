@@ -5,6 +5,7 @@ import { products, productImages } from "@/src/db/schema";
 import { eq, asc } from "drizzle-orm";
 import ProductGrid from "./components/ProductGrid";
 import CartIconButton from "./components/CartIconButton";
+import AuthNavLinks from "./components/AuthNavLinks";
 
 // Force dynamic rendering - don't prerender at build time
 export const dynamic = "force-dynamic";
@@ -61,12 +62,7 @@ export default async function Home() {
           >
             CONÓCENOS
           </Link>
-          <Link
-            href="/admin/products"
-            className="text-[#676767] text-sm font-medium tracking-[0.5em] hover:text-[#212B36] transition-colors cursor-pointer"
-          >
-            AGREGAR PRODUCTOS
-          </Link>
+          <AuthNavLinks />
         </div>
         {/* Section Title */}
         <div className="mb-6 flex justify-center">

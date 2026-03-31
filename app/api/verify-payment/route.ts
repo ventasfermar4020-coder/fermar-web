@@ -190,6 +190,7 @@ export async function POST(req: NextRequest) {
       const [order] = await tx
         .insert(orders)
         .values({
+          userId: metadata.userId ? parseInt(metadata.userId) : null,
           contactEmail: metadata.email,
           contactPhone: metadata.phone,
           shippingAddress: shippingAddress.line1 || "",

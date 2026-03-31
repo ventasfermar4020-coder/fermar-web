@@ -29,6 +29,20 @@
       "when": 1772418465491,
       "tag": "0003_left_serpent_society",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1774376634530,
+      "tag": "0004_productive_the_captain",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1774549641832,
+      "tag": "0005_orange_adam_destine",
+      "breakpoints": true
     }
   ]
 }

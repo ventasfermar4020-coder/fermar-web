@@ -31,6 +31,22 @@ function timingSafeEqual(a: string, b: string): boolean {
  */
 
 export async function middleware(request: NextRequest) {
+  // Account routes: check for NextAuth session cookie
+  if (request.nextUrl.pathname.startsWith('/account')) {
+    const token =
+      request.cookies.get('authjs.session-token')?.value ||
+      request.cookies.get('__Secure-authjs.session-token')?.value;
+
+    if (!token) {
+      const loginUrl = new URL('/login', request.url);
+      loginUrl.searchParams.set('callbackUrl', request.nextUrl.pathname);
+      return NextResponse.redirect(loginUrl);
+    }
+
+    return NextResponse.next();
+  }
+
+  // Admin routes: HTTP Basic Auth
   // Safety check: If credentials not configured, deny access
   if (!env.ADMIN_USERNAME || !env.ADMIN_PASSWORD) {
     return new NextResponse('Admin authentication not configured', {
@@ -100,6 +116,7 @@ export async function middleware(request: NextRequest) {
 // Configure which routes to protect
 export const config = {
   matcher: [
+    '/account/:path*',
     '/admin/products/new',
     '/admin/products/:path*/edit',
     '/api/admin/products',

@@ -1,0 +1,1 @@
+ALTER TABLE "ec_users" ADD COLUMN "phone" text NOT NULL;

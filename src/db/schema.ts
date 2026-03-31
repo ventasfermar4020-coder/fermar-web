@@ -20,6 +20,19 @@ export const orderStatusEnum = pgEnum("order_status", [
 ]);
 
 // ============================================================================
+// AUTH TABLES
+// ============================================================================
+
+export const users = pgTable("ec_users", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  email: text("email").notNull().unique(),
+  phone: text("phone").notNull(),
+  passwordHash: text("passwordHash").notNull(),
+  createdAt: timestamp("createdAt", { mode: "date" }).notNull().defaultNow(),
+});
+
+// ============================================================================
 // E-COMMERCE TABLES
 // ============================================================================
 
@@ -61,6 +74,8 @@ export const orders = pgTable(
   "ec_orders",
   {
     id: serial("id").primaryKey(),
+    // Optional link to registered user
+    userId: integer("userId").references(() => users.id, { onDelete: "set null" }),
     // Contact information (required for guest checkout)
     contactEmail: text("contactEmail").notNull(),
     contactPhone: text("contactPhone").notNull(),
@@ -124,7 +139,15 @@ export const productImageRelations = relations(productImages, ({ one }) => ({
   }),
 }));
 
-export const orderRelations = relations(orders, ({ many }) => ({
+export const userRelations = relations(users, ({ many }) => ({
+  orders: many(orders),
+}));
+
+export const orderRelations = relations(orders, ({ one, many }) => ({
+  user: one(users, {
+    fields: [orders.userId],
+    references: [users.id],
+  }),
   items: many(orderItems),
 }));
 
@@ -142,6 +165,9 @@ export const orderItemRelations = relations(orderItems, ({ one }) => ({
 // ============================================================================
 // TYPES
 // ============================================================================
+
+export type User = typeof users.$inferSelect;
+export type NewUser = typeof users.$inferInsert;
 
 export type Product = typeof products.$inferSelect;
 export type NewProduct = typeof products.$inferInsert;
