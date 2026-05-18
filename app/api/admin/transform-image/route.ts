@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { randomBytes } from "crypto";
 import { GoogleGenAI } from "@google/genai";
-import { uploadImageToSpaces } from "@/src/lib/spaces";
+import { uploadImage } from "@/src/lib/storage";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
 const ALLOWED_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp", "image/gif"];
@@ -101,12 +101,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Upload transformed image to DigitalOcean Spaces
+    // Upload transformed image to GCP Cloud Storage
     const transformedBuffer = Buffer.from(imagePart.inlineData.data!, "base64");
     const randomName = randomBytes(16).toString("hex");
     const filename = `${randomName}.png`;
 
-    const proxyPath = await uploadImageToSpaces(transformedBuffer, "image/png", filename);
+    const proxyPath = await uploadImage(transformedBuffer, "image/png", filename);
 
     return NextResponse.json({
       success: true,

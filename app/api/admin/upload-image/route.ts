@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import path from "path";
 import { randomBytes } from "crypto";
-import { uploadImageToSpaces } from "@/src/lib/spaces";
+import { uploadImage } from "@/src/lib/storage";
 
 // Max file size: 5MB
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
@@ -45,8 +45,8 @@ export async function POST(request: NextRequest) {
     const randomName = randomBytes(16).toString("hex");
     const filename = `${randomName}${fileExtension}`;
 
-    // Upload to DigitalOcean Spaces
-    const proxyPath = await uploadImageToSpaces(buffer, image.type, filename);
+    // Upload to GCP Cloud Storage
+    const proxyPath = await uploadImage(buffer, image.type, filename);
 
     return NextResponse.json({
       success: true,

@@ -1,8 +1,7 @@
 import { z } from "zod";
 
-// Treats empty strings as undefined so that env vars like `DO_SPACES_KEY=` don't fail validation
+// Treats empty strings as undefined so that env vars like `GCS_BUCKET=` don't fail validation
 const optionalString = z.string().min(1).optional().or(z.literal("").transform(() => undefined));
-const optionalUrl = z.string().url().optional().or(z.literal("").transform(() => undefined));
 const optionalEmail = z.string().email().optional().or(z.literal("").transform(() => undefined));
 
 const envSchema = z.object({
@@ -14,12 +13,11 @@ const envSchema = z.object({
   ADMIN_PASSWORD: optionalString,
   AUTH_SECRET: optionalString,
   GEMINI_API_KEY: optionalString,
-  DO_SPACES_REGION: optionalString,
-  DO_SPACES_BUCKET: optionalString,
-  DO_SPACES_KEY: optionalString,
-  DO_SPACES_SECRET: optionalString,
-  DO_SPACES_ENDPOINT: optionalUrl,
-  DO_SPACES_CDN_BASE_URL: optionalUrl,
+  // GCP Cloud Storage: GCS_BUCKET is just the bucket name; GCS_CREDENTIALS_JSON is the
+  // full service-account JSON key on a single line.
+  GCS_PROJECT_ID: optionalString,
+  GCS_BUCKET: optionalString,
+  GCS_CREDENTIALS_JSON: optionalString,
 });
 
 export const env = envSchema.parse({
@@ -31,10 +29,7 @@ export const env = envSchema.parse({
   ADMIN_PASSWORD: process.env.ADMIN_PASSWORD,
   AUTH_SECRET: process.env.AUTH_SECRET,
   GEMINI_API_KEY: process.env.GEMINI_API_KEY,
-  DO_SPACES_REGION: process.env.DO_SPACES_REGION,
-  DO_SPACES_BUCKET: process.env.DO_SPACES_BUCKET,
-  DO_SPACES_KEY: process.env.DO_SPACES_KEY,
-  DO_SPACES_SECRET: process.env.DO_SPACES_SECRET,
-  DO_SPACES_ENDPOINT: process.env.DO_SPACES_ENDPOINT,
-  DO_SPACES_CDN_BASE_URL: process.env.DO_SPACES_CDN_BASE_URL,
+  GCS_PROJECT_ID: process.env.GCS_PROJECT_ID,
+  GCS_BUCKET: process.env.GCS_BUCKET,
+  GCS_CREDENTIALS_JSON: process.env.GCS_CREDENTIALS_JSON,
 });
