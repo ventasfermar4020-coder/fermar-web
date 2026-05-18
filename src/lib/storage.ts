@@ -10,6 +10,20 @@ export class ObjectNotFoundError extends Error {
 
 let cached: Storage | null = null;
 
+function parseCredentials(raw: string): { client_email: string; private_key: string } {
+  // Accept either raw JSON or base64-encoded JSON. Base64 sidesteps `.env`
+  // newline-escaping bugs that mangle the PEM `private_key` and cause
+  // "Cannot call write after a stream was destroyed" from JWT signing.
+  const trimmed = raw.trim();
+  const json = trimmed.startsWith("{") ? trimmed : Buffer.from(trimmed, "base64").toString("utf-8");
+  const parsed = JSON.parse(json);
+  if (typeof parsed.private_key === "string") {
+    // If dotenv stored the literal "\n" characters instead of real newlines, restore them.
+    parsed.private_key = parsed.private_key.replace(/\\n/g, "\n");
+  }
+  return parsed;
+}
+
 function getStorage(): Storage {
   if (cached) return cached;
   if (!env.GCS_CREDENTIALS_JSON || !env.GCS_PROJECT_ID) {
@@ -19,7 +33,7 @@ function getStorage(): Storage {
   }
   cached = new Storage({
     projectId: env.GCS_PROJECT_ID,
-    credentials: JSON.parse(env.GCS_CREDENTIALS_JSON),
+    credentials: parseCredentials(env.GCS_CREDENTIALS_JSON),
   });
   return cached;
 }
