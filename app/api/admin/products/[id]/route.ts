@@ -162,3 +162,46 @@ export async function PUT(
     );
   }
 }
+
+export async function DELETE(
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    const productId = parseInt(id, 10);
+
+    if (isNaN(productId)) {
+      return NextResponse.json(
+        { error: "ID de producto inválido" },
+        { status: 400 }
+      );
+    }
+
+    const [existing] = await database
+      .select()
+      .from(products)
+      .where(eq(products.id, productId));
+
+    if (!existing) {
+      return NextResponse.json(
+        { error: "Producto no encontrado" },
+        { status: 404 }
+      );
+    }
+
+    const [updated] = await database
+      .update(products)
+      .set({ isActive: false, updatedAt: new Date() })
+      .where(eq(products.id, productId))
+      .returning({ id: products.id, isActive: products.isActive });
+
+    return NextResponse.json({ success: true, product: updated });
+  } catch (error) {
+    console.error("Error deleting product:", error);
+    return NextResponse.json(
+      { error: "Error al eliminar el producto" },
+      { status: 500 }
+    );
+  }
+}
