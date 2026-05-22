@@ -19,7 +19,7 @@ async function main() {
     WHERE table_name = 'ec_products'
     ORDER BY column_name
   `;
-  const colNames = (existing as any[]).map((r: { column_name: string }) => r.column_name);
+  const colNames = existing.map((r: { column_name: string }) => r.column_name);
   console.log("Existing columns:", colNames.join(", "));
 
   if (!colNames.includes("listingPrice")) {
