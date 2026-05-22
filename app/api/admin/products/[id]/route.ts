@@ -60,6 +60,8 @@ type UpdateProductRequest = {
   isDigital: boolean;
   image: string | null;
   images?: string[];
+  listingPrice?: number | null; // Precio de lista (shown crossed-out)
+  salePrice?: number | null;    // Precio real de venta
 };
 
 export async function PUT(
@@ -125,10 +127,13 @@ export async function PUT(
       .set({
         name: body.name,
         description: body.description,
-        price: body.price.toString(),
+        // If a salePrice is provided, that becomes the checkout price; otherwise use price directly
+        price: (body.salePrice ?? body.price).toString(),
         stock: body.isDigital ? 0 : body.stock,
         isDigital: body.isDigital,
         image: primaryImage,
+        listingPrice: body.listingPrice != null ? body.listingPrice.toString() : null,
+        salePrice: body.salePrice != null ? body.salePrice.toString() : null,
         updatedAt: new Date(),
       })
       .where(eq(products.id, productId))

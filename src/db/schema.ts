@@ -50,6 +50,9 @@ export const products = pgTable("ec_products", {
   isDigital: boolean("isDigital").notNull().default(false),
   downloadUrl: text("downloadUrl"), // Path to RAR file (e.g., /downloads/my-plugin.rar)
   activationCode: text("activationCode"), // Fixed activation code for RAR password (set manually)
+  // Pricing: listingPrice = precio de lista (shown crossed-out), salePrice = precio real de venta
+  listingPrice: numeric("listingPrice", { precision: 10, scale: 2 }), // Optional MSRP / tachado
+  salePrice: numeric("salePrice", { precision: 10, scale: 2 }),       // Optional discounted sale price
   createdAt: timestamp("createdAt", { mode: "date" }).notNull().defaultNow(),
   updatedAt: timestamp("updatedAt", { mode: "date" }).notNull().defaultNow(),
 });

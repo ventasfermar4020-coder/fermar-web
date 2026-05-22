@@ -8,6 +8,8 @@ type ProductFormData = {
   name: string;
   description: string;
   price: number;
+  listingPrice: number | null;
+  salePrice: number | null;
   stock: number;
   isDigital: boolean;
 };
@@ -199,11 +201,13 @@ export default function NewProductPage() {
       const productData = {
         name: data.name,
         description: data.description,
-        price: data.price,
+        price: data.salePrice ?? data.price,
         stock: data.isDigital ? 0 : data.stock,
         isDigital: data.isDigital,
         image: uploadedPaths.length > 0 ? uploadedPaths[0] : null,
         images: uploadedPaths,
+        listingPrice: data.listingPrice ?? null,
+        salePrice: data.salePrice ?? null,
       };
 
       const response = await fetch("/api/admin/products", {
@@ -289,27 +293,76 @@ export default function NewProductPage() {
               )}
             </div>
 
-            {/* Precio */}
-            <div>
-              <label
-                htmlFor="price"
-                className="block text-sm font-medium text-gray-700 mb-2"
-              >
-                Precio (MXN) *
-              </label>
-              <input
-                id="price"
-                type="number"
-                step="0.01"
-                {...register("price", {
-                  required: "El precio es requerido",
-                  min: { value: 0, message: "El precio debe ser mayor a 0" },
-                })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-              {errors.price && (
-                <p className="mt-1 text-sm text-red-600">{errors.price.message}</p>
-              )}
+            {/* Precios */}
+            <div className="border border-gray-200 rounded-lg p-4 space-y-4 bg-gray-50">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-gray-700">Precios (MXN)</h3>
+                {/* Live discount badge */}
+                {watch("listingPrice") && watch("salePrice") && watch("listingPrice")! > 0 && watch("salePrice")! < watch("listingPrice")! && (
+                  <span className="bg-red-100 text-red-700 text-xs font-bold px-2 py-0.5 rounded-full">
+                    {Math.round((1 - watch("salePrice")! / watch("listingPrice")!) * 100)}% OFF
+                  </span>
+                )}
+              </div>
+
+              {/* Precio de lista */}
+              <div>
+                <label
+                  htmlFor="listingPrice"
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
+                  Precio de lista <span className="text-gray-400 font-normal">(tachado)</span>
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">$</span>
+                  <input
+                    id="listingPrice"
+                    type="number"
+                    step="0.01"
+                    placeholder="0.00"
+                    {...register("listingPrice", {
+                      setValueAs: (v) => (v === "" || v === null ? null : parseFloat(v)),
+                      min: { value: 0, message: "Debe ser mayor a 0" },
+                    })}
+                    className="w-full pl-7 pr-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent line-through text-gray-400"
+                  />
+                </div>
+                {errors.listingPrice && (
+                  <p className="mt-1 text-sm text-red-600">{errors.listingPrice.message}</p>
+                )}
+              </div>
+
+              {/* Precio de venta */}
+              <div>
+                <label
+                  htmlFor="salePrice"
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
+                  Precio de venta <span className="text-red-500 font-normal text-xs">(precio real que paga el cliente)</span> *
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">$</span>
+                  <input
+                    id="salePrice"
+                    type="number"
+                    step="0.01"
+                    placeholder="0.00"
+                    {...register("salePrice", {
+                      required: "El precio de venta es requerido",
+                      setValueAs: (v) => (v === "" || v === null ? null : parseFloat(v)),
+                      min: { value: 0, message: "Debe ser mayor a 0" },
+                    })}
+                    className="w-full pl-7 pr-4 py-2 border border-red-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-transparent font-semibold text-red-600"
+                  />
+                </div>
+                {errors.salePrice && (
+                  <p className="mt-1 text-sm text-red-600">{errors.salePrice.message}</p>
+                )}
+              </div>
+
+              <p className="text-xs text-gray-400">
+                El precio de venta es el que se cobra en Stripe y se muestra en la tienda. El precio de lista se muestra tachado como referencia.
+              </p>
             </div>
 
             {/* Digital */}
