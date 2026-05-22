@@ -13,13 +13,13 @@ const pg = postgres(DATABASE_URL);
 async function main() {
   console.log("Checking/adding price columns to ec_products...");
   
-  const existing = await pg`
+  const existing = await pg<{ column_name: string }>`
     SELECT column_name 
     FROM information_schema.columns 
     WHERE table_name = 'ec_products'
     ORDER BY column_name
   `;
-  const colNames = existing.map((r: { column_name: string }) => r.column_name);
+  const colNames = existing.map((r) => r.column_name);
   console.log("Existing columns:", colNames.join(", "));
 
   if (!colNames.includes("listingPrice")) {
