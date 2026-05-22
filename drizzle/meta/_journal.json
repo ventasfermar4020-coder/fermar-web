@@ -47,8 +47,8 @@
     {
       "idx": 6,
       "version": "7",
-      "when": 1748059200000,
-      "tag": "0006_add_price_columns",
+      "when": 1779486819664,
+      "tag": "0006_common_demogoblin",
       "breakpoints": true
     }
   ]
