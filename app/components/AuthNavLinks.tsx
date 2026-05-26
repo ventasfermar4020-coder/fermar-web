@@ -2,6 +2,7 @@
 
 import { useSession, signOut } from "next-auth/react";
 import Link from "next/link";
+import { navButtonClass, navButtonDangerClass } from "./navButton";
 
 export default function AuthNavLinks() {
   const { data: session, status } = useSession();
@@ -13,15 +14,12 @@ export default function AuthNavLinks() {
   if (session?.user) {
     return (
       <>
-        <Link
-          href="/account/orders"
-          className="text-[#676767] text-sm font-medium tracking-[0.5em] hover:text-[#212B36] transition-colors cursor-pointer"
-        >
+        <Link href="/account/orders" className={navButtonClass}>
           MIS PEDIDOS
         </Link>
         <button
           onClick={() => signOut({ callbackUrl: "/" })}
-          className="text-[#676767] text-sm font-medium tracking-[0.5em] hover:text-[#EC2A2A] transition-colors cursor-pointer"
+          className={navButtonDangerClass}
         >
           SALIR
         </button>
@@ -30,10 +28,7 @@ export default function AuthNavLinks() {
   }
 
   return (
-    <Link
-      href="/login"
-      className="text-[#676767] text-sm font-medium tracking-[0.5em] hover:text-[#212B36] transition-colors cursor-pointer"
-    >
+    <Link href="/login" className={navButtonClass}>
       MI CUENTA
     </Link>
   );

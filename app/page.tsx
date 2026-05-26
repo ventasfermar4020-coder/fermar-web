@@ -6,6 +6,9 @@ import { eq, asc } from "drizzle-orm";
 import ProductGrid from "./components/ProductGrid";
 import CartIconButton from "./components/CartIconButton";
 import AuthNavLinks from "./components/AuthNavLinks";
+import CategoryTabs from "./components/CategoryTabs";
+import ProductsNavLink from "./components/ProductsNavLink";
+import { navButtonClass } from "./components/navButton";
 
 // Force dynamic rendering - don't prerender at build time
 export const dynamic = "force-dynamic";
@@ -37,14 +40,6 @@ export default async function Home() {
     images: imagesByProduct.get(product.id) || [],
   }));
 
-  const categories = [
-    { name: "Todos", active: true },
-    { name: "Juguetes", active: false },
-    { name: "Regalos", active: false },
-    { name: "Perfumes", active: false },
-    { name: "Cremas", active: false },
-  ];
-
   return (
     <div className="min-h-screen bg-white">
       {/* Floating Cart Icon */}
@@ -52,14 +47,9 @@ export default async function Home() {
       {/* Our Products Section */}
       <section className="max-w-[1170px] mx-auto px-6 py-12">
         {/* Navigation Labels */}
-        <div className="flex gap-8 mb-6">
-          <p className="text-[#676767] text-sm font-medium tracking-[0.5em]">
-            PRODUCTOS
-          </p>
-          <Link
-            href="/conocenos"
-            className="text-[#676767] text-sm font-medium tracking-[0.5em] hover:text-[#212B36] transition-colors cursor-pointer"
-          >
+        <div className="flex flex-wrap items-center gap-3 mb-6">
+          <ProductsNavLink />
+          <Link href="/conocenos" className={navButtonClass}>
             CONÓCENOS
           </Link>
           <AuthNavLinks />
@@ -75,8 +65,12 @@ export default async function Home() {
           />
         </div>
         {/* Section Description */}
-        <p className="text-[#676767] text-[19px] leading-[36px] mb-12">
-          Encuentra el regalo perfecto para esa persona especial.
+        <p className="text-center text-[#4A5568] text-[26px] md:text-[32px] leading-[1.3] font-light tracking-tight mb-12 font-[family-name:var(--font-lato)]">
+          Encuentra el{" "}
+          <span className="font-bold italic text-[#4686E8]">
+            regalo perfecto
+          </span>{" "}
+          para esa persona especial.
         </p>
         <br />
         {/* <p className="text-[#676767] text-[19px] leading-[36px] mb-12">
@@ -84,22 +78,11 @@ export default async function Home() {
           México.
         </p> */}
         {/* Category Tabs */}
-        <div className="flex gap-12 mb-16">
-          {categories.map((category, index) => (
-            <button
-              key={index}
-              className={`text-lg leading-[22px] ${
-                category.active
-                  ? "font-bold text-black"
-                  : "font-medium text-[#676767]"
-              }`}
-            >
-              {category.name}
-            </button>
-          ))}
-        </div>
+        <CategoryTabs productCount={productsWithImages.length} />
         {/* Product Grid */}
-        <ProductGrid products={productsWithImages} />
+        <div id="productos" className="scroll-mt-24">
+          <ProductGrid products={productsWithImages} />
+        </div>
         {/* Navigation Dots */}
         <div className="flex items-center justify-center gap-4">
           {/* Left Arrow */}
