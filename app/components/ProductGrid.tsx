@@ -178,6 +178,16 @@ export default function ProductGrid({ products }: { products: Product[] }) {
   const [showCheckout, setShowCheckout] = useState(false);
   const [addedProductId, setAddedProductId] = useState<number | null>(null);
 
+  const PAGE_SIZE = 20;
+  const [page, setPage] = useState(1);
+  const totalPages = Math.max(1, Math.ceil(products.length / PAGE_SIZE));
+  const pageProducts = products.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+  const goToPage = (next: number) => {
+    setPage(next);
+    document.getElementById("productos")?.scrollIntoView({ behavior: "smooth" });
+  };
+
   useEffect(() => {
     const handler = () => setShowCheckout(true);
     window.addEventListener("open-checkout", handler);
@@ -209,7 +219,7 @@ export default function ProductGrid({ products }: { products: Product[] }) {
     <>
       {/* Product Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-7 mb-16">
-        {products.map((product, index) => {
+        {pageProducts.map((product, index) => {
           const priceNumber = parseFloat(product.price);
           const formattedPrice = `$${priceNumber.toFixed(2)}`;
           // Use real sale/listing prices from DB when available
@@ -273,17 +283,6 @@ export default function ProductGrid({ products }: { products: Product[] }) {
                 <div className="bg-[#FFF3E0] text-[#7A3C00] px-2.5 py-2 text-[11px] font-semibold flex items-center">
                   No te lo pierdas
                 </div>
-              </div>
-
-              {/* ── Feature strip (envío gratis) ── */}
-              <div className="bg-[#FFF8EB] text-[#7A3C00] px-4 py-2 text-[13px] font-semibold flex items-center gap-2 border-b border-[#F3E8D0]">
-                <span
-                  className="w-[18px] h-[18px] rounded-full bg-[#FFD58A] grid place-items-center text-[11px]"
-                  aria-hidden
-                >
-                  ✈
-                </span>
-                Envío gratis a todo México
               </div>
 
               {/* ── Body ── */}
@@ -377,6 +376,40 @@ export default function ProductGrid({ products }: { products: Product[] }) {
           );
         })}
       </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex flex-wrap items-center justify-center gap-2 mb-16">
+          <button
+            onClick={() => goToPage(page - 1)}
+            disabled={page === 1}
+            className="px-4 h-10 rounded-full text-sm font-semibold border border-[#212B36] text-[#212B36] transition-colors hover:bg-[#212B36] hover:text-white disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-[#212B36]"
+          >
+            Anterior
+          </button>
+          {Array.from({ length: totalPages }, (_, i) => i + 1).map((n) => (
+            <button
+              key={n}
+              onClick={() => goToPage(n)}
+              aria-current={n === page ? "page" : undefined}
+              className={`w-10 h-10 rounded-full text-sm font-semibold transition-colors ${
+                n === page
+                  ? "bg-[#212B36] text-white"
+                  : "border border-[#212B36] text-[#212B36] hover:bg-[#212B36] hover:text-white"
+              }`}
+            >
+              {n}
+            </button>
+          ))}
+          <button
+            onClick={() => goToPage(page + 1)}
+            disabled={page === totalPages}
+            className="px-4 h-10 rounded-full text-sm font-semibold border border-[#212B36] text-[#212B36] transition-colors hover:bg-[#212B36] hover:text-white disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-[#212B36]"
+          >
+            Siguiente
+          </button>
+        </div>
+      )}
 
       {/* Cart Drawer */}
       <CartDrawer />

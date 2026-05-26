@@ -75,48 +75,6 @@ export default async function Home() {
         <div id="productos" className="scroll-mt-24">
           <ProductGrid products={productsWithImages} />
         </div>
-        {/* Navigation Dots */}
-        <div className="flex items-center justify-center gap-4">
-          {/* Left Arrow */}
-          <button className="text-[#212B36] opacity-50">
-            <svg
-              width="17"
-              height="2"
-              viewBox="0 0 17 2"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path d="M0 1H17" stroke="currentColor" strokeWidth="1.3" />
-            </svg>
-          </button>
-
-          {/* Dots */}
-          <div className="flex items-center gap-4">
-            {[0, 1, 2, 3, 4].map((dot) => (
-              <div
-                key={dot}
-                className={`rounded-full ${
-                  dot === 0
-                    ? "w-5 h-5 bg-[#D9D9D9] border border-[#212B36]"
-                    : "w-[5px] h-[5px] bg-[#212B36]"
-                }`}
-              />
-            ))}
-          </div>
-
-          {/* Right Arrow */}
-          <button className="text-[#212B36] opacity-50">
-            <svg
-              width="17"
-              height="2"
-              viewBox="0 0 17 2"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path d="M0 1H17" stroke="currentColor" strokeWidth="1.3" />
-            </svg>
-          </button>
-        </div>
         {/* Wishlist Icon */}
         <div className="absolute right-[118px] top-[445px] w-[35px] h-[35px] bg-[#DBE1E6] rounded-full flex items-center justify-center">
           <svg
