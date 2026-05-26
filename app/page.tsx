@@ -1,4 +1,3 @@
-import Image from "next/image";
 import Link from "next/link";
 import { database } from "@/src/db";
 import { products, productImages } from "@/src/db/schema";
@@ -9,6 +8,7 @@ import AuthNavLinks from "./components/AuthNavLinks";
 import CategoryTabs from "./components/CategoryTabs";
 import ProductsNavLink from "./components/ProductsNavLink";
 import { navButtonClass } from "./components/navButton";
+import FloatingLogos from "./components/FloatingLogos";
 
 // Force dynamic rendering - don't prerender at build time
 export const dynamic = "force-dynamic";
@@ -55,15 +55,7 @@ export default async function Home() {
           <AuthNavLinks />
         </div>
         {/* Section Title */}
-        <div className="mb-6 flex justify-center">
-          <Image
-            src="/fermar-logo.png"
-            alt="Our Products"
-            width={300}
-            height={70}
-            className="object-contain"
-          />
-        </div>
+        <FloatingLogos />
         {/* Section Description */}
         <p className="text-center text-[#4A5568] text-[26px] md:text-[32px] leading-[1.3] font-light tracking-tight mb-12 font-[family-name:var(--font-lato)]">
           Encuentra el{" "}

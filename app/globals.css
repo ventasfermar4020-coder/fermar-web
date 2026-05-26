@@ -25,6 +25,32 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
+/* Floating brand-logo animation (landing page hero) */
+@keyframes float-a {
+  from { transform: translate(-18px, 10px) rotate(-6deg); }
+  to { transform: translate(24px, -32px) rotate(7deg); }
+}
+@keyframes float-b {
+  from { transform: translate(16px, 12px) rotate(5deg); }
+  to { transform: translate(-30px, -26px) rotate(-7deg); }
+}
+@keyframes float-c {
+  from { transform: translate(-14px, -12px) rotate(-4deg); }
+  to { transform: translate(22px, 30px) rotate(8deg); }
+}
+
+.animate-float-a { animation: float-a 5s ease-in-out infinite alternate; animation-delay: -1s; }
+.animate-float-b { animation: float-b 7s ease-in-out infinite alternate; animation-delay: -3s; }
+.animate-float-c { animation: float-c 9s ease-in-out infinite alternate; animation-delay: -5s; }
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-float-a,
+  .animate-float-b,
+  .animate-float-c {
+    animation: none;
+  }
+}
+
 /* Print styles for shipping labels */
 @media print {
   @page {
