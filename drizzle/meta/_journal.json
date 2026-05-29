@@ -50,6 +50,13 @@
       "when": 1779486819664,
       "tag": "0006_common_demogoblin",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1780072022575,
+      "tag": "0007_hesitant_the_fury",
+      "breakpoints": true
     }
   ]
 }

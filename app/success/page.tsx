@@ -245,6 +245,12 @@ function SuccessPageContent() {
           </div>
         </div>
         <Link
+          href="/account/orders"
+          className="inline-block w-full bg-[#212B36] hover:bg-[#161e26] text-white font-semibold text-lg py-3 px-6 rounded-[3px] transition-colors duration-200 mb-3"
+        >
+          📦 Rastrear mi pedido
+        </Link>
+        <Link
           href="/"
           className="inline-block w-full bg-[#EC2A2A] hover:bg-[#D32424] text-white font-semibold text-lg py-3 px-6 rounded-[3px] transition-colors duration-200"
         >

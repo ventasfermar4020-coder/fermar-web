@@ -93,7 +93,10 @@ export const orders = pgTable(
     status: orderStatusEnum("status").notNull().default("pending"),
     totalAmount: numeric("totalAmount", { precision: 10, scale: 2 }).notNull(),
     // Payment information
-    stripePaymentIntentId: text("stripePaymentIntentId"),
+    stripePaymentIntentId: text("stripePaymentIntentId").unique(),
+    // Set once the customer confirmation email has been sent (exactly-once guard,
+    // shared by the webhook and the verify-payment fallback path)
+    confirmationEmailSentAt: timestamp("confirmationEmailSentAt", { mode: "date" }),
     // Timestamps
     createdAt: timestamp("createdAt", { mode: "date" }).notNull().defaultNow(),
     updatedAt: timestamp("updatedAt", { mode: "date" }).notNull().defaultNow(),

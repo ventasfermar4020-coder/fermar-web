@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { database } from "@/src/db";
 import { orders, orderItems, products, type Product } from "@/src/db/schema";
-import { eq, sql } from "drizzle-orm";
+import { and, eq, gte, sql } from "drizzle-orm";
+import { sendOrderConfirmationEmails } from "@/src/lib/order-emails";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2025-09-30.clover",
@@ -109,6 +110,10 @@ export async function POST(req: NextRequest) {
         }
       }
 
+      // Ensure the proof-of-purchase email goes out even if the webhook
+      // created the order but never (successfully) sent it. Idempotent.
+      await sendOrderConfirmationEmails(existingOrder[0].id);
+
       return NextResponse.json({
         success: true,
         orderId: existingOrder[0].id,
@@ -172,17 +177,29 @@ export async function POST(req: NextRequest) {
         return existingOrderInTx[0]; // Return existing order
       }
 
-      // Decrement product stock for each physical product
+      // Decrement product stock for each physical product, guarding against overselling.
       for (const item of parsedItems) {
         const product = productDetails.find((p) => p.id === item.productId);
         if (product && !product.isDigital) {
-          await tx
+          const decremented = await tx
             .update(products)
             .set({
               stock: sql`${products.stock} - ${item.quantity}`,
               updatedAt: new Date(),
             })
-            .where(eq(products.id, item.productId));
+            .where(
+              and(
+                eq(products.id, item.productId),
+                gte(products.stock, item.quantity)
+              )
+            )
+            .returning({ id: products.id });
+
+          if (decremented.length === 0) {
+            console.error(
+              `🚨 OVERSELL: product ${item.productId} had insufficient stock for qty ${item.quantity} on paid order (PI ${paymentIntentId})`
+            );
+          }
         }
       }
 
@@ -205,14 +222,15 @@ export async function POST(req: NextRequest) {
         })
         .returning();
 
-      // Create order items for each cart item
+      // Create order items, snapshotting price and name from the DB product.
       for (const item of parsedItems) {
+        const product = productDetails.find((p) => p.id === item.productId);
         await tx.insert(orderItems).values({
           orderId: order.id,
           productId: item.productId,
           quantity: item.quantity,
-          priceAtPurchase: item.price,
-          productNameSnapshot: item.name,
+          priceAtPurchase: product?.price ?? item.price,
+          productNameSnapshot: product?.name ?? item.name,
         });
       }
 
@@ -220,6 +238,9 @@ export async function POST(req: NextRequest) {
 
       return order;
     });
+
+    // Send the proof-of-purchase email (exactly-once, idempotent with the webhook).
+    await sendOrderConfirmationEmails(result.id);
 
     // Return order details with product information
     return NextResponse.json({

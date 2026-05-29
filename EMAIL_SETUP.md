@@ -32,7 +32,7 @@ Add the following environment variables to your `.env` file:
 
 ```env
 RESEND_API_KEY=re_your_api_key_here
-OWNER_EMAIL=your-email@example.com
+OWNER_EMAIL=fermar4020@gmail.com
 ```
 
 **Important:**

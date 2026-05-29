@@ -3,7 +3,7 @@ import { database } from "@/src/db";
 import { orders, orderItems, products } from "@/src/db/schema";
 import { eq, and } from "drizzle-orm";
 import { readFile } from "fs/promises";
-import { join } from "path";
+import { join, normalize, sep } from "path";
 
 export async function GET(req: NextRequest) {
   try {
@@ -90,8 +90,19 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // Construct file path (downloadUrl should be relative, e.g., "my-plugin.rar")
-    const filePath = join(process.cwd(), "public", "downloads", product.downloadUrl);
+    // Construct file path (downloadUrl should be relative, e.g., "my-plugin.rar").
+    // Guard against path traversal: a malicious/misconfigured downloadUrl
+    // containing "../" must never escape the downloads directory.
+    const downloadsDir = join(process.cwd(), "public", "downloads");
+    const filePath = normalize(join(downloadsDir, product.downloadUrl));
+
+    if (filePath !== downloadsDir && !filePath.startsWith(downloadsDir + sep)) {
+      console.error(`🚨 Path traversal attempt blocked for product ${product.id}: ${product.downloadUrl}`);
+      return NextResponse.json(
+        { error: "Invalid download path" },
+        { status: 400 }
+      );
+    }
 
     console.log(`📂 Reading file from: ${filePath}`);
 

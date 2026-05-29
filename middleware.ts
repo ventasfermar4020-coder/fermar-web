@@ -3,16 +3,25 @@ import type { NextRequest } from 'next/server';
 import { env } from '@/src/env';
 
 /**
- * Timing-safe string comparison to prevent timing attacks
+ * Constant-time string comparison to prevent timing attacks.
+ *
+ * Both inputs are hashed with SHA-256 first, so the comparison always runs
+ * over fixed-length (32-byte) digests and never leaks the secret's length.
+ * Uses the Web Crypto API, which is available in the Edge Runtime.
  */
-function timingSafeEqual(a: string, b: string): boolean {
-  if (a.length !== b.length) {
-    return false;
-  }
+async function constantTimeEqual(a: string, b: string): Promise<boolean> {
+  const enc = new TextEncoder();
+  const [digestA, digestB] = await Promise.all([
+    crypto.subtle.digest('SHA-256', enc.encode(a)),
+    crypto.subtle.digest('SHA-256', enc.encode(b)),
+  ]);
+
+  const viewA = new Uint8Array(digestA);
+  const viewB = new Uint8Array(digestB);
 
   let result = 0;
-  for (let i = 0; i < a.length; i++) {
-    result |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  for (let i = 0; i < viewA.length; i++) {
+    result |= viewA[i] ^ viewB[i];
   }
 
   return result === 0;
@@ -25,9 +34,9 @@ function timingSafeEqual(a: string, b: string): boolean {
  * Uses browser's built-in Basic Auth dialog
  *
  * Protected routes:
- * - /admin/products/new (product form)
- * - /api/admin/products (product API)
- * - /api/admin/upload-image (image upload API)
+ * - /account/* (NextAuth session)
+ * - /admin/*     (all admin pages, incl. /admin/orders)
+ * - /api/admin/* (all admin APIs)
  */
 
 export async function middleware(request: NextRequest) {
@@ -74,24 +83,21 @@ export async function middleware(request: NextRequest) {
   try {
     const base64Credentials = authHeader.split(' ')[1];
     const credentials = Buffer.from(base64Credentials, 'base64').toString('utf-8');
-    const [username, password] = credentials.split(':');
+    // Split on the FIRST colon only — passwords may legitimately contain ':'.
+    const separatorIndex = credentials.indexOf(':');
+    const username = separatorIndex === -1 ? credentials : credentials.slice(0, separatorIndex);
+    const password = separatorIndex === -1 ? '' : credentials.slice(separatorIndex + 1);
 
-    // Validate username
-    if (username !== env.ADMIN_USERNAME) {
-      return new NextResponse('Invalid credentials', {
-        status: 401,
-        headers: {
-          'WWW-Authenticate': 'Basic realm="Admin Area"',
-        },
-      });
-    }
+    // Validate username and password with constant-time comparisons.
+    // A single combined check avoids revealing which field was wrong.
+    // Note: Using plain comparison since bcrypt doesn't work in Edge Runtime.
+    // For production, ensure HTTPS is enabled to protect credentials in transit.
+    const [usernameValid, passwordValid] = await Promise.all([
+      constantTimeEqual(username, env.ADMIN_USERNAME),
+      constantTimeEqual(password, env.ADMIN_PASSWORD),
+    ]);
 
-    // Validate password using timing-safe comparison
-    // Note: Using plain password comparison since bcrypt doesn't work in Edge Runtime
-    // For production, ensure HTTPS is enabled to protect credentials in transit
-    const isPasswordValid = timingSafeEqual(password, env.ADMIN_PASSWORD);
-
-    if (!isPasswordValid) {
+    if (!usernameValid || !passwordValid) {
       return new NextResponse('Invalid credentials', {
         status: 401,
         headers: {
@@ -117,11 +123,9 @@ export async function middleware(request: NextRequest) {
 export const config = {
   matcher: [
     '/account/:path*',
-    '/admin/products/new',
-    '/admin/products/:path*/edit',
-    '/api/admin/products',
-    '/api/admin/products/:path*',
-    '/api/admin/upload-image',
-    '/api/admin/transform-image',
+    // Protect the entire admin surface (pages + APIs), including /admin/orders
+    // which exposes customer PII (emails, phones, addresses).
+    '/admin/:path*',
+    '/api/admin/:path*',
   ],
 };

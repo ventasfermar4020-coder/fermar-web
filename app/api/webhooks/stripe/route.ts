@@ -2,11 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { database } from "@/src/db";
 import { orders, orderItems, products } from "@/src/db/schema";
-import { eq, sql } from "drizzle-orm";
-import { getResendClient } from "@/src/lib/email";
-import { env } from "@/src/env";
-import { generateOwnerOrderEmail } from "@/src/emails/owner-new-order";
-import { generateCustomerOrderConfirmationEmail } from "@/src/emails/customer-order-confirmation";
+import { and, eq, gte, inArray, sql } from "drizzle-orm";
+import { sendOrderConfirmationEmails } from "@/src/lib/order-emails";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2025-09-30.clover",
@@ -123,8 +120,17 @@ export async function POST(req: NextRequest) {
 
       console.log(`📦 Processing order for ${parsedItems.length} item(s)`);
 
+      // Fetch canonical product data once. Prices and names recorded on the
+      // order MUST come from the database, never from client-controlled metadata.
+      const productIds = parsedItems.map((i) => i.productId);
+      const dbProducts = await database
+        .select()
+        .from(products)
+        .where(inArray(products.id, productIds));
+      const productMap = new Map(dbProducts.map((p) => [p.id, p]));
+
       // Use a transaction to ensure stock is decremented and order is created atomically
-      await database.transaction(async (tx) => {
+      const createdOrderId = await database.transaction(async (tx) => {
         // Double-check inside transaction to prevent race condition
         const existingOrderInTx = await tx
           .select()
@@ -134,27 +140,37 @@ export async function POST(req: NextRequest) {
 
         if (existingOrderInTx.length > 0) {
           console.log("✅ Order already exists in transaction:", existingOrderInTx[0].id);
-          return; // Exit early, don't decrement stock or create order
+          return existingOrderInTx[0].id; // Exit early, don't decrement stock or create order
         }
 
-        // Decrement stock for each physical product
+        // Decrement stock for each physical product, guarding against overselling.
         for (const item of parsedItems) {
-          const [product] = await tx
-            .select()
-            .from(products)
-            .where(eq(products.id, item.productId))
-            .limit(1);
+          const product = productMap.get(item.productId);
 
           if (product && !product.isDigital) {
-            await tx
+            const decremented = await tx
               .update(products)
               .set({
                 stock: sql`${products.stock} - ${item.quantity}`,
                 updatedAt: new Date(),
               })
-              .where(eq(products.id, item.productId));
+              .where(
+                and(
+                  eq(products.id, item.productId),
+                  gte(products.stock, item.quantity)
+                )
+              )
+              .returning({ id: products.id });
 
-            console.log(`✅ Stock decremented for physical product: ${item.productId} (qty: ${item.quantity})`);
+            if (decremented.length === 0) {
+              // Payment already succeeded, so we still create the order, but flag
+              // the oversell so it can be reconciled manually.
+              console.error(
+                `🚨 OVERSELL: product ${item.productId} had insufficient stock for qty ${item.quantity} on paid order (PI ${paymentIntent.id})`
+              );
+            } else {
+              console.log(`✅ Stock decremented for physical product: ${item.productId} (qty: ${item.quantity})`);
+            }
           } else if (product?.isDigital) {
             console.log(`ℹ️ Digital product - stock not decremented: ${item.productId}`);
           }
@@ -179,86 +195,25 @@ export async function POST(req: NextRequest) {
           })
           .returning();
 
-        // Create order items for each cart item
+        // Create order items, snapshotting price and name from the DB product.
         for (const item of parsedItems) {
+          const product = productMap.get(item.productId);
           await tx.insert(orderItems).values({
             orderId: order.id,
             productId: item.productId,
             quantity: item.quantity,
-            priceAtPurchase: item.price,
-            productNameSnapshot: item.name,
+            priceAtPurchase: product?.price ?? item.price,
+            productNameSnapshot: product?.name ?? item.name,
           });
         }
 
         console.log(`✅ Order created: ${order.id} with ${parsedItems.length} items for payment ${paymentIntent.id}`);
 
-        // Send emails after successful order creation
-        try {
-          // Check if email configuration is available
-          if (!env.RESEND_API_KEY || !env.OWNER_EMAIL) {
-            console.log("⚠️ Email not configured - skipping email notifications");
-            console.log("  Set RESEND_API_KEY and OWNER_EMAIL environment variables to enable emails");
-            return; // Skip email sending
-          }
-
-          // Fetch the complete order with items and product details for emails
-          const orderWithItems = await tx
-            .select()
-            .from(orders)
-            .where(eq(orders.id, order.id))
-            .limit(1);
-
-          const items = await tx
-            .select({
-              id: orderItems.id,
-              orderId: orderItems.orderId,
-              productId: orderItems.productId,
-              quantity: orderItems.quantity,
-              priceAtPurchase: orderItems.priceAtPurchase,
-              productNameSnapshot: orderItems.productNameSnapshot,
-              product: products,
-            })
-            .from(orderItems)
-            .leftJoin(products, eq(orderItems.productId, products.id))
-            .where(eq(orderItems.orderId, order.id));
-
-          // Get Resend client
-          const resend = getResendClient();
-
-          // Send email to owner
-          const ownerEmailHtml = generateOwnerOrderEmail({
-            order: orderWithItems[0],
-            items,
-          });
-
-          await resend.emails.send({
-            from: "Notificaciones <onboarding@resend.dev>",
-            to: env.OWNER_EMAIL,
-            subject: `Nueva Orden #${order.id} - $${Number(order.totalAmount).toFixed(2)} MXN`,
-            html: ownerEmailHtml,
-          });
-
-          console.log(`📧 Owner notification email sent to ${env.OWNER_EMAIL}`);
-
-          // Send confirmation email to customer
-          const customerEmailHtml = generateCustomerOrderConfirmationEmail({
-            order: orderWithItems[0],
-            items,
-          });
-
-          await resend.emails.send({
-            from: "Fermar <onboarding@resend.dev>",
-            to: metadata.email,
-            subject: `Confirmación de Orden #${order.id}`,
-            html: customerEmailHtml,
-          });
-
-          console.log(`📧 Customer confirmation email sent to ${metadata.email}`);
-        } catch (emailError) {
-          // Log email errors but don't fail the webhook
-          console.error("⚠️ Error sending emails (order still created):", emailError);
-        }
+        return order.id;
       });
+
+      // Send confirmation emails outside the transaction (exactly-once, idempotent).
+      await sendOrderConfirmationEmails(createdOrderId);
 
       return NextResponse.json({ received: true });
     } catch (error) {

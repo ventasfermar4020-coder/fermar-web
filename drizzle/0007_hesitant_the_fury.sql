@@ -1,0 +1,2 @@
+ALTER TABLE "ec_orders" ADD COLUMN "confirmationEmailSentAt" timestamp;--> statement-breakpoint
+ALTER TABLE "ec_orders" ADD CONSTRAINT "ec_orders_stripePaymentIntentId_unique" UNIQUE("stripePaymentIntentId");
