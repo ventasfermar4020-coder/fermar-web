@@ -136,6 +136,18 @@ async function main() {
         isActive: true,
         category: "Regalos",
       },
+      // Gifts
+      {
+        name: "True Wireless Headset M30 Pro",
+        description:
+          "Audífonos inalámbricos True Wireless M30 Pro con estuche de carga, sonido estéreo de alta definición y conexión Bluetooth estable.",
+        price: "200.00",
+        stripePriceId: null,
+        image: "/products/headset-m30-pro.png",
+        stock: 50,
+        isActive: true,
+        category: "Regalos",
+      },
     ])
     .onConflictDoNothing()
     .returning();
