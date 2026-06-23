@@ -40,7 +40,7 @@ export default async function Home() {
   }));
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-[#ECE5D8]">
       {/* Floating Cart Icon */}
       <CartIconButton />
       {/* Our Products Section */}
