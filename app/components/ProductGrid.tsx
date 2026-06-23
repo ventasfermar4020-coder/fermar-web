@@ -12,7 +12,7 @@ type ProductImageData = {
   sortOrder: number;
 };
 
-type Product = {
+export type Product = {
   id: number;
   name: string;
   description: string;
@@ -24,6 +24,7 @@ type Product = {
   stock: number;
   isActive: boolean;
   isDigital?: boolean;
+  category?: string | null;
 };
 
 /* ──────────────────────────────────────────────

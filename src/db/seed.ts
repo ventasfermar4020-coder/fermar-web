@@ -21,6 +21,7 @@ async function main() {
         image: "/products/retro-racers.png",
         stock: 15,
         isActive: true,
+        category: "Juguetes",
       },
       {
         name: "Hot Wheels Flames Edition",
@@ -31,6 +32,7 @@ async function main() {
         image: "/products/flames.png",
         stock: 30,
         isActive: true,
+        category: "Juguetes",
       },
       {
         name: "Hot Wheels Drift Masters",
@@ -41,6 +43,7 @@ async function main() {
         image: "/products/drift.png",
         stock: 12,
         isActive: true,
+        category: "Juguetes",
       },
       {
         name: "Hot Wheels Motor Show Collection",
@@ -51,6 +54,7 @@ async function main() {
         image: "/products/motor-show.png",
         stock: 8,
         isActive: true,
+        category: "Juguetes",
       },
       {
         name: "Hot Wheels Remote Adventure",
@@ -61,6 +65,7 @@ async function main() {
         image: "/products/remote-adventure.png",
         stock: 10,
         isActive: true,
+        category: "Juguetes",
       },
       {
         name: "Hot Wheels Tesla Model X",
@@ -71,6 +76,7 @@ async function main() {
         image: "/products/tesla-mX.jpg",
         stock: 20,
         isActive: true,
+        category: "Juguetes",
       },
       {
         name: "Hot Wheels Ford F-150",
@@ -81,6 +87,7 @@ async function main() {
         image: "/products/f150.jpg",
         stock: 18,
         isActive: true,
+        category: "Juguetes",
       },
       {
         name: "Hot Wheels Aqua King 2010",
@@ -91,6 +98,7 @@ async function main() {
         image: "/products/Aqua-king-2010.jpg",
         stock: 14,
         isActive: true,
+        category: "Juguetes",
       },
       // Playmobil
       {
@@ -102,6 +110,7 @@ async function main() {
         image: "/products/playmobil.png",
         stock: 25,
         isActive: true,
+        category: "Juguetes",
       },
       // Barbie
       {
@@ -113,6 +122,7 @@ async function main() {
         image: "/products/barbie.png",
         stock: 20,
         isActive: true,
+        category: "Juguetes",
       },
       // Beauty - Avon Products
       {
@@ -124,6 +134,7 @@ async function main() {
         image: "/products/avon-def.png",
         stock: 35,
         isActive: true,
+        category: "Regalos",
       },
     ])
     .onConflictDoNothing()

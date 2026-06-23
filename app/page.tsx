@@ -2,10 +2,9 @@ import Link from "next/link";
 import { database } from "@/src/db";
 import { products, productImages } from "@/src/db/schema";
 import { eq, asc } from "drizzle-orm";
-import ProductGrid from "./components/ProductGrid";
+import ProductCatalog from "./components/ProductCatalog";
 import CartIconButton from "./components/CartIconButton";
 import AuthNavLinks from "./components/AuthNavLinks";
-import CategoryTabs from "./components/CategoryTabs";
 import ProductsNavLink from "./components/ProductsNavLink";
 import { navButtonClass } from "./components/navButton";
 import FloatingLogos from "./components/FloatingLogos";
@@ -69,12 +68,8 @@ export default async function Home() {
           Todos los productos incluyen costo de envío gratis por correos de
           México.
         </p> */}
-        {/* Category Tabs */}
-        <CategoryTabs productCount={productsWithImages.length} />
-        {/* Product Grid */}
-        <div id="productos" className="scroll-mt-24">
-          <ProductGrid products={productsWithImages} />
-        </div>
+        {/* Category Tabs + Product Grid (filtered by category) */}
+        <ProductCatalog products={productsWithImages} />
         {/* Wishlist Icon */}
         <div className="absolute right-[118px] top-[445px] w-[35px] h-[35px] bg-[#DBE1E6] rounded-full flex items-center justify-center">
           <svg

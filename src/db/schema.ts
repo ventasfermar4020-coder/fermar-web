@@ -46,6 +46,8 @@ export const products = pgTable("ec_products", {
   image: text("image"), // Legacy single image field (kept for backward compat)
   stock: integer("stock").notNull().default(0),
   isActive: boolean("isActive").notNull().default(true),
+  // Storefront category used by the category tabs (e.g. Juguetes, Regalos, Perfumes, Cremas)
+  category: text("category"),
   // Digital product fields (for WordPress plugins)
   isDigital: boolean("isDigital").notNull().default(false),
   downloadUrl: text("downloadUrl"), // Path to RAR file (e.g., /downloads/my-plugin.rar)

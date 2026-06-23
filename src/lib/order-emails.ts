@@ -74,23 +74,38 @@ export async function sendOrderConfirmationEmails(orderId: number): Promise<Send
 
     const resend = getResendClient();
 
+    // NOTE: the Resend SDK (v6) does NOT throw on API errors — it resolves to
+    // { data, error }. We must inspect `error` explicitly, otherwise failures
+    // (e.g. test-mode "you can only send to your own address", unverified
+    // domain) are silently dropped and the email never arrives.
+
     // Owner notification
-    await resend.emails.send({
+    const ownerResult = await resend.emails.send({
       from: "Notificaciones <onboarding@resend.dev>",
       to: env.OWNER_EMAIL,
       subject: `Nueva Orden #${order.id} - $${Number(order.totalAmount).toFixed(2)} MXN`,
       html: generateOwnerOrderEmail({ order, items }),
     });
-    console.log(`📧 Owner notification email sent to ${env.OWNER_EMAIL} for order #${order.id}`);
+    if (ownerResult.error) {
+      throw new Error(
+        `Resend rejected owner email to ${env.OWNER_EMAIL}: ${JSON.stringify(ownerResult.error)}`
+      );
+    }
+    console.log(`📧 Owner notification email sent to ${env.OWNER_EMAIL} for order #${order.id} (id: ${ownerResult.data?.id})`);
 
     // Customer confirmation (the proof-of-purchase email)
-    await resend.emails.send({
+    const customerResult = await resend.emails.send({
       from: "Fermar <onboarding@resend.dev>",
       to: order.contactEmail,
       subject: `Confirmación de Orden #${order.id}`,
       html: generateCustomerOrderConfirmationEmail({ order, items }),
     });
-    console.log(`📧 Customer confirmation email sent to ${order.contactEmail} for order #${order.id}`);
+    if (customerResult.error) {
+      throw new Error(
+        `Resend rejected customer email to ${order.contactEmail}: ${JSON.stringify(customerResult.error)}`
+      );
+    }
+    console.log(`📧 Customer confirmation email sent to ${order.contactEmail} for order #${order.id} (id: ${customerResult.data?.id})`);
 
     return { sent: true };
   } catch (error) {

@@ -1,14 +1,18 @@
 "use client";
 
-import { useState } from "react";
-
-const CATEGORIES = ["Todos", "Juguetes", "Regalos", "Perfumes", "Cremas"];
-
-export default function CategoryTabs({ productCount }: { productCount: number }) {
-  const [active, setActive] = useState("Todos");
-
+export default function CategoryTabs({
+  categories,
+  active,
+  onChange,
+  productCount,
+}: {
+  categories: string[];
+  active: string;
+  onChange: (name: string) => void;
+  productCount: number;
+}) {
   const handleClick = (name: string) => {
-    setActive(name);
+    onChange(name);
     document
       .getElementById("productos")
       ?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -17,7 +21,7 @@ export default function CategoryTabs({ productCount }: { productCount: number })
   return (
     <div className="flex flex-wrap items-center justify-between gap-x-8 gap-y-4 mb-10 pb-5 border-b border-[#ECECEC]">
       <div className="flex flex-wrap gap-x-10 gap-y-2">
-        {CATEGORIES.map((name) => {
+        {categories.map((name) => {
           const isActive = active === name;
           return (
             <button
